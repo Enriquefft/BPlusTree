@@ -20,21 +20,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Install GCC
-      uses: egor-tensin/setup-gcc@v1.3
-      
-    - name: GCC Version
-      run: g++-12 --version && g++ --version
-    - name: Install GCC 12
-      run: sudo apt install -y gcc-12 g++-12 && g++-12 --version && g++ --version
-
-    - name: Setup GCC 12
-      run: export CXX=g++-12
-
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: export CXX=g++-12 && cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
       # Build your program with the given configuration
