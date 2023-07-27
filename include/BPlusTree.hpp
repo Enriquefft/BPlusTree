@@ -1,23 +1,10 @@
-#include <chrono>
 #ifndef BPlusTree_HPP
+#define BPlusTree_HPP
 
+#include "Concepts.hpp"
 #include <functional>
 
 constexpr size_t MIN_DEGREE = 3;
-
-/**
- * @brief Default Indexor function
- * @details
- * This function is used to extract the key from the value when the key is the
- * value, in other words, it returns itself
- * */
-struct Identity {
-  template <typename U>
-  auto operator()(U &&v) const -> decltype(std::forward<U>(v)) {
-    return std::forward<U>(v);
-  }
-  [[nodiscard]] static bool isIdentity() { return true; }
-};
 
 /**
  * @brief Generic B+ Tree class
@@ -33,13 +20,23 @@ struct Identity {
  * time.
  *
  * */
-template <size_t M, typename Key, std::copy_constructible T = Key,
+template <size_t M, properKeyValue Key, properKeyValue T = Key,
           std::predicate<Key, Key> Compare = std::less<Key>,
           typename Indexer = Identity,
           class Allocator = std::allocator<const Key>, //
           size_t CHILD_COUNT = M, size_t KEY_COUNT = M - 1>
-  requires(M >= MIN_DEGREE)
 class BPlusTree {
+
+  // M must be at least 3
+  static_assert(M >= MIN_DEGREE, "M(B+Tree degree) must be at least 3");
+
+  // T must not be functor
+  static_assert(
+      NonFunctor<T>,
+      "T must not be a functor or predicate, this issue proably means that the "
+      "predicate wasn't detected by sfinae due to wrong template parameters.\n "
+      "Eg. operator()(int, int) When Key is float");
+
   // potential missuse of CHILD_COUNT and KEY_COUNT
   static_assert(CHILD_COUNT == M,
                 "CHILD_COUNT must not be manually changed\nIf you want to "
@@ -98,7 +95,7 @@ private:
   Node *root{};
 };
 
-template <size_t M, typename Key, std::predicate<Key, Key> Compare>
+template <size_t M, properKeyValue Key, std::predicate<Key, Key> Compare>
   requires(M >= MIN_DEGREE)
 class BPlusTree<M, Key, Compare> : public BPlusTree<M, Key, Key, Compare> {};
 
