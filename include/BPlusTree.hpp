@@ -7,11 +7,17 @@ constexpr size_t MIN_DEGREE = 3;
 
 /**
  * @brief Default Indexor function
+ * @details
+ * This function is used to extract the key from the value when the key is the
+ * value, in other words, it returns itself
  * */
-template <typename U>
-auto DefaultIndexor(U &&v) -> decltype(std::forward<U>(v)) {
-  return std::forward<U>(v);
-}
+struct Identity {
+  template <typename U>
+  auto operator()(U &&v) const -> decltype(std::forward<U>(v)) {
+    return std::forward<U>(v);
+  }
+  [[nodiscard]] static bool isIdentity() { return true; }
+};
 
 /**
  * @brief Generic B+ Tree class
@@ -19,7 +25,6 @@ auto DefaultIndexor(U &&v) -> decltype(std::forward<U>(v)) {
  * @tparam Key Key type
  * @tparam T Value type
  * @tparam Compare Comparison function
- * @tparam Indexor Indexing function
  * @tparam Allocator Allocator type
  *
  * @details
@@ -28,9 +33,9 @@ auto DefaultIndexor(U &&v) -> decltype(std::forward<U>(v)) {
  * time.
  *
  * */
-template <size_t M, typename Key, std::copy_constructible T,
+template <size_t M, typename Key, std::copy_constructible T = Key,
           std::predicate<Key, Key> Compare = std::less<Key>,
-          std::function<Key(T)> Indexor = DefaultIndexor,
+          typename Indexer = Identity,
           class Allocator = std::allocator<const Key>, //
           size_t CHILD_COUNT = M, size_t KEY_COUNT = M - 1>
   requires(M >= MIN_DEGREE)
@@ -44,6 +49,9 @@ class BPlusTree {
                 "KEY_COUNT must not be manually changed\nIf you want to change "
                 "the order of "
                 "the tree, change M\nKEY_COUNT is used for internal purposes");
+
+public:
+  BPlusTree() = default;
 
 private:
   // Internal use classes
