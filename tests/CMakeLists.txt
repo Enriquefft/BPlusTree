@@ -15,6 +15,15 @@ macro(package_add_test TESTNAME)
     WORKING_DIRECTORY ${PROJECT_DIR}
     PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_DIR}")
   set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+
+  # c++20
+  target_compile_features(${TESTNAME} PRIVATE cxx_std_20)
+
+  # Include headers
+  target_include_directories(${TESTNAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+
 endmacro()
 
-package_add_test(test1 test1.cpp)
+option(CMAKE_EXPORT_COMPILE_COMMANDS "Export compile commands" ON)
+
+package_add_test(templateTest templateTest.cpp)

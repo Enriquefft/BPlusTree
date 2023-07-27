@@ -49,8 +49,31 @@ class BPlusTree {
                 "KEY_COUNT must not be manually changed\nIf you want to change "
                 "the order of "
                 "the tree, change M\nKEY_COUNT is used for internal purposes");
+  template <bool isConst> class BPlusTreeIterator;
 
 public:
+  // Typedefs
+  using key_type = Key;
+  using mapped_type = T;
+  using value_type = Key;
+  using size_type = size_t;
+  using difference_type = std::ptrdiff_t;
+  using key_compare = Compare;
+  using allocator_type = Allocator;
+
+  using reference = value_type &;
+  using const_reference = const value_type &;
+  using pointer = typename std::allocator_traits<Allocator>::pointer;
+  using const_pointer =
+      typename std::allocator_traits<Allocator>::const_pointer;
+  using iterator = BPlusTreeIterator<false>;
+  using const_iterator = BPlusTreeIterator<true>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+  // Testing purposes
+  using indexor = Indexer;
+
   BPlusTree() = default;
 
 private:
@@ -72,7 +95,11 @@ private:
   template <bool isConst> class BPlusTreeIterator {};
 
   // Private members
-  Node *root;
+  Node *root{};
 };
+
+template <size_t M, typename Key, std::predicate<Key, Key> Compare>
+  requires(M >= MIN_DEGREE)
+class BPlusTree<M, Key, Compare> : public BPlusTree<M, Key, Key, Compare> {};
 
 #endif // !BPlusTree_HPP
