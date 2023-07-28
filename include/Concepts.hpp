@@ -4,23 +4,36 @@
 #include <utility>
 
 /**
- * @brief Default Indexor function
+ * @brief Default Indexor function: Identity
  * @details
  * This function is used to extract the key from the value when the key is the
  * value, in other words, it returns itself
  * */
 struct Identity {
+  /**
+   * @brief Indexor function
+   * @param v Value to return
+   */
   template <typename U>
   auto operator()(U &&v) const -> decltype(std::forward<U>(v)) {
     return std::forward<U>(v);
   }
+  /**
+   * @brief Check if the function is the identity
+   * @return true
+   */
   [[nodiscard]] static bool isIdentity() { return true; }
 };
 
+/**
+ * @brief Concept for a functor
+ * */
 template <typename T, typename = void> struct is_functor : std::false_type {};
 
+/// @cond
 template <typename T>
 struct is_functor<T, std::void_t<decltype(&T::operator())>> : std::true_type {};
+/// @endcond
 
 /**
  * @brief Concept for a non functor
@@ -28,6 +41,14 @@ struct is_functor<T, std::void_t<decltype(&T::operator())>> : std::true_type {};
 template <typename T>
 concept NonFunctor = !
 is_functor<T>::value;
+
+/**
+ * @brief Concept for an indexer callable
+ */
+template <typename Functor, typename T, typename Key>
+concept is_indexer = requires(Functor f, T v) {
+                       { f(v) } -> std::convertible_to<Key>;
+                     };
 
 /**
  * @brief Concept for a proper key value
