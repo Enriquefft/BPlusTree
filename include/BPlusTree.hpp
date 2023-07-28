@@ -50,9 +50,15 @@ class BPlusTree {
                 "the tree, change M\nKEY_COUNT is used for internal purposes");
 
   // Indexor asserts
-  static_assert(!(std::is_same<Indexer, Identity>::value &&
-                  !std::is_same<Key, T>::value),
-                "If Indexor is Identity, then Key and T must be the same");
+  // static_assert(!(std::is_same<Indexer, Identity>::value &&
+  //                 !std::is_same<Key, T>::value),
+  //               "If Indexor is Identity, then Key and T must be the same");
+
+  // if Key == T, then Indexor must be Identity
+  static_assert(std::is_same<Indexer, Identity>::value ||
+                    !std::is_same<Key, T>::value,
+                "If Key and T are the same, then Indexor must be Identity");
+
   using isSet =
       std::integral_constant<bool, std::is_same<Indexer, Identity>::value &&
                                        std::is_same<Key, T>::value>;
@@ -83,7 +89,8 @@ public:
   using mapped_type = T;
 
   /// @brief Type definition for representing value pairs in BPlusTree
-  using value_type = std::pair<const Key, T>;
+  using value_type =
+      std::conditional_t<isSet::value, Key, std::pair<const Key, T>>;
 
   /// @brief Type definition for representing size in BPlusTree
   using size_type = size_t;
@@ -185,7 +192,7 @@ public:
   /// @param indexor Indexer. Defaults to Indexer().
   template <std::input_iterator InputIt>
   BPlusTree(InputIt first, InputIt last, const Allocator &alloc,
-            const Indexer &indexor = Indexer()) {}
+            const Indexer &indexor = Indexer());
 
   /// @brief Iterator and Comparator & Indexer-based constructor
   /// @details Allows input of range and configuration of comparator and
@@ -196,7 +203,7 @@ public:
   /// @param indexor Indexer.
   template <std::input_iterator InputIt>
   BPlusTree(InputIt first, InputIt last, const Compare &comp,
-            const Indexer &indexor) {}
+            const Indexer &indexor);
 
   /// @brief Iterator and Indexer-based constructor
   /// @details Allows input of range and configuration of indexer.
@@ -204,7 +211,7 @@ public:
   /// @param [in] last Iterator pointing to the end of input range.
   /// @param indexor Indexer.
   template <std::input_iterator InputIt>
-  BPlusTree(InputIt first, InputIt last, const Indexer &indexor) {}
+  BPlusTree(InputIt first, InputIt last, const Indexer &indexor);
 
   /// @brief Copy constructor
   /// @details Constructs a new object as a copy of an existing one
@@ -326,74 +333,48 @@ public:
   // Insert
 
   std::pair<iterator, bool> insert(const value_type &value);
-  template <MappedConvertible<mapped_type> P>
+  template <rvalue_constructible_from<value_type> P>
   std::pair<iterator, bool> insert(P &&value);
   std::pair<iterator, bool> insert(value_type &&value);
-
-  std::pair<iterator, bool> insert(const key_type &key)
-    requires isSet::value;
-  template <KeyConvertible<key_type> K>
-    requires isSet::value
-  std::pair<iterator, bool> insert(K &&key);
-  std::pair<iterator, bool> insert(key_type &&key)
-    requires isSet::value;
-
   iterator insert(const_iterator position, const value_type &value);
-  template <MappedConvertible<mapped_type> P>
+  template <rvalue_constructible_from<value_type> P>
   iterator insert(const_iterator position, P &&value);
   iterator insert(const_iterator position, value_type &&value);
 
-  iterator insert(const_iterator position, const key_type &key)
-    requires isSet::value;
-  template <KeyConvertible<key_type> K>
-    requires isSet::value
-  iterator insert(const_iterator position, K &&key);
-  iterator insert(const_iterator position, key_type &&key)
-    requires isSet::value;
-
-  template <std::input_iterator InputIt>
-    requires std::is_constructible_v<
-        value_type, typename std::iterator_traits<InputIt>::reference>
-  void insert(InputIt first, InputIt last);
-
-  template <std::input_iterator InputIt>
-    requires std::is_constructible_v<
-                 key_type, typename std::iterator_traits<InputIt>::reference> &&
-             isSet::value
+  template <ValueInputIterator<Key> InputIt>
   void insert(InputIt first, InputIt last);
 
   void insert(std::initializer_list<value_type> ilist);
-  void insert(std::initializer_list<key_type> ilist)
-    requires isSet::value;
 
   // insert_or_assign
-  template <MappedConvertible<mapped_type> P>
+  template <MappedAssignable<mapped_type> P>
   std::pair<iterator, bool> insert_or_assign(const key_type &key, P &&obj);
-  template <MappedConvertible<mapped_type> P>
+  template <MappedAssignable<mapped_type> P>
   std::pair<iterator, bool> insert_or_assign(key_type &&key, P &&obj);
-  template <MappedConvertible<mapped_type> P>
+  template <MappedAssignable<mapped_type> P>
   iterator insert_or_assign(const_iterator hint, const key_type &key, P &&obj);
-  template <MappedConvertible<mapped_type> P>
+  template <MappedAssignable<mapped_type> P>
   iterator insert_or_assign(const_iterator hint, key_type &&key, P &&obj);
 
   // emplace
-  template <PairConstructible<key_type, mapped_type>... Args>
+  template <std::constructible_from<value_type>... Args>
   std::pair<iterator, bool> emplace(Args &&...args);
 
   // emplace_hint
-  template <PairConstructible<key_type, mapped_type>... Args>
+  template <std::constructible_from<value_type>... Args>
   iterator emplace_hint(const_iterator hint, Args &&...args);
 
   // try_emplace
-  template <MappedConstructible<mapped_type>... Args>
+  template <std::constructible_from<mapped_type>... Args>
   std::pair<iterator, bool> try_emplace(const key_type &key, Args &&...args);
 
-  template <MappedConstructible<mapped_type>... Args>
+  template <std::constructible_from<mapped_type>... Args>
   std::pair<iterator, bool> try_emplace(key_type &&key, Args &&...args);
-  template <MappedConstructible<mapped_type>... Args>
+
+  template <std::constructible_from<mapped_type>... Args>
   iterator try_emplace(const_iterator hint, const key_type &key,
                        Args &&...args);
-  template <MappedConstructible<mapped_type>... Args>
+  template <std::constructible_from<mapped_type>... Args>
   iterator try_emplace(const_iterator hint, key_type &&key, Args &&...args);
 
   // erase

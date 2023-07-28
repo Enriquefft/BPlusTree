@@ -12,22 +12,18 @@
 template <typename Key, typename C>
 concept ComparableKey = std::equality_comparable_with<Key, C>;
 
-template <typename T, typename C>
-concept MappedConvertible = std::convertible_to<C, T>;
+template <class T, class... Args>
+concept rvalue_constructible_from =
+    std::destructible<T> && std::is_constructible_v<T, Args &&...>;
 
-template <typename Key, typename C>
-concept KeyConvertible = std::convertible_to<C, Key>;
+template <typename mapped_type, typename M>
+concept MappedAssignable = std::assignable_from<mapped_type &, M &&>;
 
-template <typename Key, typename T, typename... Args>
-concept PairConstructible = std::constructible_from<std::pair<Key, T>, Args...>;
-
-template <typename T, typename... Args>
-concept MappedConstructible = std::constructible_from<T, Args...>;
-
-template <typename Key, typename InputIt>
-concept KeyInputIterator =
+template <typename value_type, typename InputIt>
+concept ValueInputIterator =
     std::input_iterator<InputIt> &&
-    KeyConvertible<Key, typename std::iterator_traits<InputIt>::value_type>;
+    std::constructible_from<value_type,
+                            typename std::iterator_traits<InputIt>::value_type>;
 
 /// @}
 
