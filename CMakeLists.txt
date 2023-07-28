@@ -14,6 +14,9 @@ target_include_directories(bplus_tree PRIVATE include)
 
 target_compile_features(bplus_tree PRIVATE cxx_std_20)
 
+target_compile_options(bplus_tree PRIVATE -Wall -Wextra -Wpedantic)
+# -undefined dynamic_lookup)
+
 include(FetchContent)
 FetchContent_Declare(
   googletest

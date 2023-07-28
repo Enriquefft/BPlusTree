@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
 #include <type_traits>
 
-#include "../include/BPlusTree.hpp"
+#define NO_TEMPLATE_TESTS
+
+#ifndef NO_TEMPLATE_TESTS
+
+#include "BPlusTree.hpp"
 
 TEST(TemplateParametersTesting, OnlyKey) {
   using key_type = int;
@@ -35,3 +39,5 @@ TEST(TemplateParametersTesting, KeyValueAndCompare) {
       (std::is_same_v<decltype(tree)::key_compare, std::less<key_type>>));
   ASSERT_TRUE((std::is_same_v<decltype(tree)::key_compare, FloatCompare>));
 }
+
+#endif

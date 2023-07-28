@@ -1,6 +1,10 @@
 macro(package_add_test TESTNAME)
   # create an executable in which the tests will be stored
   add_executable(${TESTNAME} ${ARGN})
+
+  # Include headers
+  target_include_directories(${TESTNAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+
   # link the Google test infrastructure, mocking library, and a default main
   # function to the test executable.  Remove g_test_main if writing your own
   # main function.
@@ -19,11 +23,9 @@ macro(package_add_test TESTNAME)
   # c++20
   target_compile_features(${TESTNAME} PRIVATE cxx_std_20)
 
-  # Include headers
-  target_include_directories(${TESTNAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
-
 endmacro()
 
 option(CMAKE_EXPORT_COMPILE_COMMANDS "Export compile commands" ON)
 
 package_add_test(templateTest templateTest.cpp)
+package_add_test(insertionTest insertionTests.cpp)

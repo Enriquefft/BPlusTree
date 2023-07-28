@@ -1,6 +1,7 @@
 #ifndef CONCEPTS_B_PLUS_TREE_HPP
 #define CONCEPTS_B_PLUS_TREE_HPP
 
+#include <iterator>
 #include <utility>
 
 /// @defgroup Concepts B+Tree concepts
@@ -11,14 +12,22 @@
 template <typename Key, typename C>
 concept ComparableKey = std::equality_comparable_with<Key, C>;
 
-template <typename mapped_type, typename C>
-concept MappedConvertible = std::convertible_to<C, mapped_type>;
+template <typename T, typename C>
+concept MappedConvertible = std::convertible_to<C, T>;
+
+template <typename Key, typename C>
+concept KeyConvertible = std::convertible_to<C, Key>;
 
 template <typename Key, typename T, typename... Args>
 concept PairConstructible = std::constructible_from<std::pair<Key, T>, Args...>;
 
 template <typename T, typename... Args>
 concept MappedConstructible = std::constructible_from<T, Args...>;
+
+template <typename Key, typename InputIt>
+concept KeyInputIterator =
+    std::input_iterator<InputIt> &&
+    KeyConvertible<Key, typename std::iterator_traits<InputIt>::value_type>;
 
 /// @}
 

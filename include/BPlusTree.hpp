@@ -53,6 +53,9 @@ class BPlusTree {
   static_assert(!(std::is_same<Indexer, Identity>::value &&
                   !std::is_same<Key, T>::value),
                 "If Indexor is Identity, then Key and T must be the same");
+  using isSet =
+      std::integral_constant<bool, std::is_same<Indexer, Identity>::value &&
+                                       std::is_same<Key, T>::value>;
 
   // if Indexor is not Identity, then it must be a functor
   static_assert(
@@ -321,20 +324,47 @@ public:
   void clear() noexcept;
 
   // Insert
+
   std::pair<iterator, bool> insert(const value_type &value);
   template <MappedConvertible<mapped_type> P>
   std::pair<iterator, bool> insert(P &&value);
   std::pair<iterator, bool> insert(value_type &&value);
+
+  std::pair<iterator, bool> insert(const key_type &key)
+    requires isSet::value;
+  template <KeyConvertible<key_type> K>
+    requires isSet::value
+  std::pair<iterator, bool> insert(K &&key);
+  std::pair<iterator, bool> insert(key_type &&key)
+    requires isSet::value;
 
   iterator insert(const_iterator position, const value_type &value);
   template <MappedConvertible<mapped_type> P>
   iterator insert(const_iterator position, P &&value);
   iterator insert(const_iterator position, value_type &&value);
 
+  iterator insert(const_iterator position, const key_type &key)
+    requires isSet::value;
+  template <KeyConvertible<key_type> K>
+    requires isSet::value
+  iterator insert(const_iterator position, K &&key);
+  iterator insert(const_iterator position, key_type &&key)
+    requires isSet::value;
+
   template <std::input_iterator InputIt>
+    requires std::is_constructible_v<
+        value_type, typename std::iterator_traits<InputIt>::reference>
+  void insert(InputIt first, InputIt last);
+
+  template <std::input_iterator InputIt>
+    requires std::is_constructible_v<
+                 key_type, typename std::iterator_traits<InputIt>::reference> &&
+             isSet::value
   void insert(InputIt first, InputIt last);
 
   void insert(std::initializer_list<value_type> ilist);
+  void insert(std::initializer_list<key_type> ilist)
+    requires isSet::value;
 
   // insert_or_assign
   template <MappedConvertible<mapped_type> P>
