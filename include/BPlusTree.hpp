@@ -25,7 +25,7 @@ constexpr size_t MIN_DEGREE = 3;
 template <size_t M, properKeyValue Key, properKeyValue T = Key,
           std::predicate<Key, Key> Compare = std::less<Key>,
           typename Indexer = Identity,
-          class Allocator = std::allocator<const Key>, //
+          class Allocator = std::allocator<std::pair<const Key, T>>, //
           size_t CHILD_COUNT = M, size_t KEY_COUNT = M - 1>
 class BPlusTree {
 
@@ -65,6 +65,8 @@ class BPlusTree {
   class LeafNode;
   class InternalNode;
 
+  class node_return;
+
 public:
   /// @defgroup TypeDefinitions Type Definitions
   /// @brief Provides typedefs used throughout the BPlusTree class
@@ -89,16 +91,8 @@ public:
   /// @brief Type definition for key comparison function object in BPlusTree
   using key_compare = Compare;
 
-  /// @brief Type definition for node allocator in BPlusTree
-  using NodeAllocator = typename Allocator::template rebind<Node>::other;
-
   /// @brief Type definition for leaf node allocator in BPlusTree
-  using LeafNodeAllocator =
-      typename Allocator::template rebind<LeafNode>::other;
-
-  /// @brief Type definition for internal node allocator in BPlusTree
-  using InternalNodeAllocator =
-      typename Allocator::template rebind<InternalNode>::other;
+  using allocator_type = Allocator;
 
   /// @brief Type definition for reference to the value_type
   using reference = value_type &;
@@ -276,6 +270,156 @@ public:
 
   /// @}
 
+  ~BPlusTree();
+
+  /**
+   * @name Element access
+   * Accesor methods for the B+Tree based on the key
+   * */
+  /// @{
+  mapped_type &at(const Key &key);
+  const mapped_type &at(const Key &key) const;
+  mapped_type &operator[](const Key &key);
+  mapped_type &operator[](Key &&key);
+  /// @}
+
+  /**
+   * @name Iterators
+   * Iterator related methods
+   * */
+  /// @{
+  iterator begin() noexcept;
+  const_iterator begin() const noexcept;
+  const_iterator cbegin() const noexcept;
+
+  iterator end() noexcept;
+  const_iterator end() const noexcept;
+  const_iterator cend() const noexcept;
+
+  reverse_iterator rbegin() noexcept;
+  const_reverse_iterator rbegin() const noexcept;
+  const_reverse_iterator crbegin() const noexcept;
+
+  reverse_iterator rend() noexcept;
+  const_reverse_iterator rend() const noexcept;
+  const_reverse_iterator crend() const noexcept;
+  /// @}
+  /**
+   * @name Capacity
+   * Observer methods for the B+Tree capacity
+   * */
+  /// @{
+  [[nodiscard]] bool empty() const noexcept;
+  [[nodiscard]] size_type size() const noexcept;
+  [[nodiscard]] size_type max_size() const noexcept;
+  /// @}
+  /**
+   * @name Modifiers
+   * Methods for modifying the B+Tree
+   * */
+  /// @{
+  void clear() noexcept;
+
+  // Insert
+  std::pair<iterator, bool> insert(const value_type &value);
+  template <MappedConvertible<mapped_type> P>
+  std::pair<iterator, bool> insert(P &&value);
+  std::pair<iterator, bool> insert(value_type &&value);
+
+  iterator insert(const_iterator position, const value_type &value);
+  template <MappedConvertible<mapped_type> P>
+  iterator insert(const_iterator position, P &&value);
+  iterator insert(const_iterator position, value_type &&value);
+
+  template <std::input_iterator InputIt>
+  void insert(InputIt first, InputIt last);
+
+  void insert(std::initializer_list<value_type> ilist);
+
+  // insert_or_assign
+  template <MappedConvertible<mapped_type> P>
+  std::pair<iterator, bool> insert_or_assign(const key_type &key, P &&obj);
+  template <MappedConvertible<mapped_type> P>
+  std::pair<iterator, bool> insert_or_assign(key_type &&key, P &&obj);
+  template <MappedConvertible<mapped_type> P>
+  iterator insert_or_assign(const_iterator hint, const key_type &key, P &&obj);
+  template <MappedConvertible<mapped_type> P>
+  iterator insert_or_assign(const_iterator hint, key_type &&key, P &&obj);
+
+  // emplace
+  template <PairConstructible<key_type, mapped_type>... Args>
+  std::pair<iterator, bool> emplace(Args &&...args);
+
+  // emplace_hint
+  template <PairConstructible<key_type, mapped_type>... Args>
+  iterator emplace_hint(const_iterator hint, Args &&...args);
+
+  // try_emplace
+  template <MappedConstructible<mapped_type>... Args>
+  std::pair<iterator, bool> try_emplace(const key_type &key, Args &&...args);
+
+  template <MappedConstructible<mapped_type>... Args>
+  std::pair<iterator, bool> try_emplace(key_type &&key, Args &&...args);
+  template <MappedConstructible<mapped_type>... Args>
+  iterator try_emplace(const_iterator hint, const key_type &key,
+                       Args &&...args);
+  template <MappedConstructible<mapped_type>... Args>
+  iterator try_emplace(const_iterator hint, key_type &&key, Args &&...args);
+
+  // erase
+  iterator erase(iterator position);
+  iterator erase(const_iterator position);
+  iterator erase(const_iterator first, const_iterator last);
+  size_type erase(const key_type &key);
+  template <ComparableKey<key_type> K> size_type erase(const K &key_compare);
+
+  // swap
+  void swap(BPlusTree &other) noexcept(
+      std::allocator_traits<Allocator>::propagate_on_container_swap::value ||
+      std::allocator_traits<Allocator>::is_always_equal::value);
+  /// @}
+
+  /**
+   * @name Lookup
+   * Methods for looking up elements in the B+Tree
+   * */
+  /// @{
+  [[nodiscard]] size_type count(const Key &key) const;
+  template <ComparableKey<key_type> K>
+  [[nodiscard]] size_type count(const K &key_compare) const;
+
+  [[nodiscard]] iterator find(const Key &key);
+  [[nodiscard]] const_iterator find(const Key &key) const;
+
+  template <ComparableKey<key_type> K>
+  [[nodiscard]] iterator find(const K &key);
+  template <ComparableKey<key_type> K>
+  [[nodiscard]] const_iterator find(const K &key) const;
+
+  bool contains(const Key &key) const;
+  template <ComparableKey<key_type> K> bool contains(const K &key) const;
+
+  std::pair<iterator, iterator> equal_range(const Key &key);
+  std::pair<const_iterator, const_iterator> equal_range(const Key &key) const;
+
+  template <ComparableKey<key_type> K>
+  std::pair<iterator, iterator> equal_range(const K &key);
+  template <ComparableKey<key_type> K>
+  std::pair<const_iterator, const_iterator> equal_range(const K &key) const;
+
+  iterator lower_bound(const Key &key);
+  const_iterator lower_bound(const Key &key) const;
+
+  template <ComparableKey<key_type> K> iterator lower_bound(const K &key);
+  template <ComparableKey<key_type> K> const_iterator lower_bound(const K &key);
+
+  iterator upper_bound(const Key &key);
+  const_iterator upper_bound(const Key &key) const;
+  template <ComparableKey<key_type> K> iterator upper_bound(const K &key);
+  template <ComparableKey<key_type> K> const_iterator upper_bound(const K &key);
+
+  /// @}
+
 private:
   // Internal use classes
 
@@ -304,9 +448,10 @@ private:
    * array of values and pointers to the next and previous leaf nodes.
    * */
   class LeafNode : public Node {
-    std::array<T, KEY_COUNT> values; ///< Array of (M-1) values
-    LeafNode *next;                  ///< Pointer to next leaf node
-    LeafNode *prev;                  ///< Pointer to previous leaf node
+    std::array<value_type, KEY_COUNT>
+        values;     ///< Array of (M-1) values_types (key-value pairs)
+    LeafNode *next; ///< Pointer to next leaf node
+    LeafNode *prev; ///< Pointer to previous leaf node
   };
 
   /**
@@ -328,10 +473,8 @@ private:
   template <bool isConst> class BPlusTreeIterator {};
 
   // Private members
-  Node *root = nullptr;
-  NodeAllocator nodeAlloc;
-  LeafNodeAllocator leafNodeAlloc;
-  InternalNodeAllocator internalNodeAlloc;
+  Node *m_root = nullptr;
+  allocator_type m_allocator;
 };
 
 template <size_t M, properKeyValue Key, std::predicate<Key, Key> Compare,

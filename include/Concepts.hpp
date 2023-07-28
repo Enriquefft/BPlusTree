@@ -3,6 +3,25 @@
 
 #include <utility>
 
+/// @defgroup Concepts B+Tree concepts
+/// @name Concepts
+/// @brief Concepts that the B+Tree members use
+/// @{
+
+template <typename Key, typename C>
+concept ComparableKey = std::equality_comparable_with<Key, C>;
+
+template <typename mapped_type, typename C>
+concept MappedConvertible = std::convertible_to<C, mapped_type>;
+
+template <typename Key, typename T, typename... Args>
+concept PairConstructible = std::constructible_from<std::pair<Key, T>, Args...>;
+
+template <typename T, typename... Args>
+concept MappedConstructible = std::constructible_from<T, Args...>;
+
+/// @}
+
 /**
  * @brief Default Indexor function: Identity
  * @details
