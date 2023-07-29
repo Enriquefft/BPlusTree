@@ -2,8 +2,8 @@
 #define BPlusTree_HPP
 
 #include "Concepts.hpp"
-#include <bits/iterator_concepts.h>
 #include <functional>
+#include <memory>
 
 constexpr size_t MIN_DEGREE = 3;
 
@@ -517,9 +517,6 @@ private:
   allocator_type m_allocator;
   key_compare m_comp;
   indexor m_indexor;
-
-  // Private methods
-  Node *copyTree();
 };
 
 template <size_t M, properKeyValue Key, std::predicate<Key, Key> Compare,
@@ -567,48 +564,121 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(InputIt first, InputIt last,
                                             const Allocator &alloc,
                                             const Indexer &indexor)
     : m_comp(comp), m_allocator(alloc), m_indexor(indexor) {
-  for (; first != last; ++first) {
-    insert(*first);
+
+  insert(first, last);
+}
+
+template <BPLUS_TEMPLATES>
+BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other)
+    : m_comp(other.m_comp),
+      m_allocator(std::allocator_traits<allocator_type>::
+                      select_on_container_copy_construction(other.m_allocator)),
+      m_indexor(other.m_indexor) {
+
+  if (other.m_root != nullptr) {
+    // InternalNode or LeafNode
+    m_root = new std::remove_pointer_t<decltype(other.m_root)>(*other.m_root);
+  } else {
+    m_root = nullptr;
   }
 }
 
 template <BPLUS_TEMPLATES>
-BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other) {}
-
-template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other,
-                                            const Allocator &alloc) {}
-template <BPLUS_TEMPLATES>
-BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other) noexcept {}
-template <BPLUS_TEMPLATES>
-BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other,
-                                            const Allocator &alloc) {}
+                                            const Allocator &alloc)
+    : m_comp(other.m_comp), m_allocator(alloc), m_indexor(other.m_indexor) {
 
-template <BPLUS_TEMPLATES>
-BPlusTree<BPLUS_TEMPLATE_PARAMS> &
-BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(BPlusTree &&other) noexcept {}
-
-template <BPLUS_TEMPLATES>
-BPlusTree<BPLUS_TEMPLATE_PARAMS> &
-BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(const BPlusTree &other) {}
-
-template <BPLUS_TEMPLATES>
-auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::copyTree() -> Node * {
-  if (m_root == nullptr) {
-    return nullptr;
+  if (alloc == other.m_allocator) {
+    if (other.m_root != nullptr) {
+      // InternalNode or LeafNode
+      m_root = new std::remove_pointer_t<decltype(other.m_root)>(*other.m_root);
+    } else {
+      m_root = nullptr;
+    }
+    return;
   }
 
-  return std::copy(m_root);
+  throw std::runtime_error("Copy constructor with allocator not implemented if "
+                           "allocators are not equal");
+}
+
+template <BPLUS_TEMPLATES>
+BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other) noexcept
+    : m_root(std::exchange(other.m_root, nullptr)),
+      m_allocator(std::move(other.m_allocator)),
+      m_comp(std::move(other.m_allocator)),
+      m_indexor(std::move(other.m_indexor)) {}
+
+template <BPLUS_TEMPLATES>
+BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other,
+                                            const Allocator &alloc)
+    : m_comp(other.m_comp), m_indexor(other.m_indexor) {
+
+  if (alloc == other.m_allocator) {
+    m_allocator = std::move(other.m_allocator);
+    m_root = std::exchange(other.m_root, nullptr);
+    return;
+  }
+
+  throw std::runtime_error("Move constructor with allocator not implemented if "
+                           "allocator is not equal to other allocator");
+}
+
+template <BPLUS_TEMPLATES>
+BPlusTree<BPLUS_TEMPLATE_PARAMS> &
+BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(BPlusTree &&other) noexcept {
+
+  if (this != &other) {
+
+    this->clear();
+
+    m_root = std::exchange(other.m_root, nullptr);
+    m_allocator = std::move(other.m_allocator);
+    m_comp = std::move(other.m_comp);
+    m_indexor = std::move(other.m_indexor);
+  }
+
+  return *this;
+}
+
+template <BPLUS_TEMPLATES>
+BPlusTree<BPLUS_TEMPLATE_PARAMS> &
+BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(const BPlusTree &other) {
+
+  if (this != &other) {
+    this->clear();
+    m_allocator = other.m_allocator;
+    m_comp = other.m_comp;
+    m_indexor = other.m_indexor;
+
+    if (other.m_root != nullptr) {
+      // InternalNode or LeafNode
+      m_root = new std::remove_pointer_t<decltype(other.m_root)>(*other.m_root);
+    } else {
+      m_root = nullptr;
+    }
+  }
+  return *this;
 }
 
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS> &BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(
-    std::initializer_list<value_type> ilist) {}
+    std::initializer_list<value_type> ilist) {
+
+  this->clear();
+
+  insert(ilist);
+
+  return *this;
+}
 
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(
     std::initializer_list<value_type> init, const Compare &comp,
-    const Allocator &alloc, const Indexer &indexor) {}
+    const Allocator &alloc, const Indexer &indexor)
+    : m_comp(comp), m_allocator(alloc), m_indexor(indexor) {
+  insert(init);
+}
 
 // *** Insertion *** //
 

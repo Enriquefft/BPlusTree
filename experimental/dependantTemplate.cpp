@@ -10,3 +10,5 @@ template <typename T> using dependant_t = T;
 template <typename T>
 template <std::convertible_to<dependant_t<T>> U>
 foo<T>::foo(U var) {}
+
+int main(int argc, char *argv[]) { return 0; }
