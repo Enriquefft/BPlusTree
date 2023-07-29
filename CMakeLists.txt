@@ -6,11 +6,11 @@ project(
   DESCRIPTION "Generic B+ Tree implementation in C++"
   LANGUAGES CXX)
 
-option(CMAKE_EXPORT_COMPILE_COMMANDS "Export compile commands" ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 
 add_executable(bplus_tree src/main.cpp)
 
-target_include_directories(bplus_tree PRIVATE include)
+target_include_directories(bplus_tree PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_features(bplus_tree PRIVATE cxx_std_20)
 

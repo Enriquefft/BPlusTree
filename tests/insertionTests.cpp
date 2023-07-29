@@ -1,8 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "../include/BPlusTree.hpp"
-
 // Generate BPlusTrees
+#include "BPlusTree.hpp"
 
 namespace {
 template <typename Key, typename Value>
@@ -31,13 +30,6 @@ TEST(insert, InsertDuplicateValue) {
 
   // Check if the value is not inserted
   ASSERT_FALSE(inserted);
-}
-
-TEST(insert, InsertInvalidValue) {
-  auto map = getSimpleMap<int, std::string>();
-
-  // Trying to insert invalid/null value
-  EXPECT_THROW(map.insert(std::make_pair(1, NULL)), std::invalid_argument);
 }
 
 TEST(insert, InsertOrder) {

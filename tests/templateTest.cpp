@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 #include <type_traits>
 
-#include "../include/BPlusTree.hpp"
+#include "BPlusTree.hpp"
+#include "Concepts.hpp"
 
 TEST(TemplateParametersTesting, OnlyKey) {
   using key_type = int;

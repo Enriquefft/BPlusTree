@@ -1,10 +1,5 @@
-// #include "BPlusTree.hpp"
+#include "BPlusTree.hpp"
 #include <iostream>
-
-class FloatCompare {
-public:
-  bool operator()(const float &a, const float &b) const { return a < b; }
-};
 
 int main() {
 

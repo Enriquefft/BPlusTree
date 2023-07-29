@@ -1,9 +1,14 @@
+set(CMAKE_EXPORT_COMPILE_COMMANDS on)
+
+# Include headers for all tests
+include_directories(PRIVATE ../include)
+
 macro(package_add_test TESTNAME)
   # create an executable in which the tests will be stored
   add_executable(${TESTNAME} ${ARGN})
 
-  # Include headers
-  target_include_directories(${TESTNAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+  # c++20
+  target_compile_features(${TESTNAME} PRIVATE cxx_std_20)
 
   # link the Google test infrastructure, mocking library, and a default main
   # function to the test executable.  Remove g_test_main if writing your own
@@ -20,12 +25,7 @@ macro(package_add_test TESTNAME)
     PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_DIR}")
   set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
 
-  # c++20
-  target_compile_features(${TESTNAME} PRIVATE cxx_std_20)
-
 endmacro()
-
-option(CMAKE_EXPORT_COMPILE_COMMANDS "Export compile commands" ON)
 
 package_add_test(templateTest templateTest.cpp)
 package_add_test(insertionTest insertionTests.cpp)
