@@ -115,15 +115,7 @@ protected:
   /// @{
   /// @brief Default constructor
   /// @details It uses default comparator, allocator and indexer.
-  BPlusTree() : BPlusTree(Compare()) {
-    std::cout << "Called default constructor\n";
-
-    if (isSet) {
-      std::cout << "Set\n";
-    } else {
-      std::cout << "Map\n";
-    }
-  }
+  BPlusTree() : BPlusTree(Compare()) {}
 
   /// @brief Comprehensive constructor
   /// @details It allows configuration of comparator, allocator and indexer.
@@ -231,25 +223,6 @@ protected:
   /// @param alloc Allocator.
   BPlusTree(BPlusTree &&other, const Allocator &alloc);
 
-  /// @brief Move assignment operator
-  /// @details Replaces the contents with those of other using move semantics
-  /// (i.e., the data in other is moved from other into this container).
-  /// @param other Another object to be used as source to initialize elements of
-  /// the container with.
-  BPlusTree &operator=(BPlusTree &&other) noexcept;
-
-  /// @brief Copy assignment operator.
-  /// @details Replaces the contents with a copy of the contents of other.
-  /// @param other Another object to be used as source to initialize elements of
-  /// the container with.
-  BPlusTree &operator=(const BPlusTree &other);
-
-  /// @brief Initializer list assignment operator
-  /// @details Replaces the contents with the elements from the initializer list
-  /// ilist.
-  /// @param ilist Initializer list to assign from.
-  BPlusTree &operator=(std::initializer_list<value_type> ilist);
-
   /// @brief Initializer list constructor with compare and alloc
   /// @details Constructs a new object from the given initializer list
   /// @param init Initializer list to assign from.
@@ -290,6 +263,25 @@ protected:
       : BPlusTree(init, Compare(), Allocator(), indexor) {}
 
 public:
+  /// @brief Move assignment operator
+  /// @details Replaces the contents with those of other using move semantics
+  /// (i.e., the data in other is moved from other into this container).
+  /// @param other Another object to be used as source to initialize elements of
+  /// the container with.
+  BPlusTree &operator=(BPlusTree &&other) noexcept;
+
+  /// @brief Copy assignment operator.
+  /// @details Replaces the contents with a copy of the contents of other.
+  /// @param other Another object to be used as source to initialize elements of
+  /// the container with.
+  BPlusTree &operator=(const BPlusTree &other);
+
+  /// @brief Initializer list assignment operator
+  /// @details Replaces the contents with the elements from the initializer list
+  /// ilist.
+  /// @param ilist Initializer list to assign from.
+  BPlusTree &operator=(std::initializer_list<value_type> ilist);
+
   /// @}
 
   ~BPlusTree();
@@ -520,25 +512,6 @@ private:
 
 #define BPLUS_TEMPLATE_PARAMS                                                  \
   M, Key, T, Compare, Indexer, Allocator, isSet, CHILD_COUNT, KEY_COUNT
-
-/******************
-*******************
-*  Helper classes *
-*******************
-******************/
-
-template <size_t M, properKeyValue Key, properKeyValue T,
-          std::predicate<Key, Key> Compare = std::less<Key>,
-          Indexor<Key, T> Indexer = UnusableIndexor<Key>,
-          class Allocator = std::allocator<std::pair<const Key, T>>>
-class Map : public BPlusTree<M, Key, T, Compare, Indexer, Allocator, false, M,
-                             M - 1> {};
-
-template <size_t M, properKeyValue Key,
-          std::predicate<Key, Key> Compare = std::less<Key>,
-          class Allocator = std::allocator<Key>>
-class Set : public BPlusTree<M, Key, Key, Compare, Identity, Allocator, true, M,
-                             M - 1> {};
 
 /******************
 *******************
