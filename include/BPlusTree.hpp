@@ -3,6 +3,7 @@
 
 #include "Concepts.hpp"
 #include <functional>
+#include <iostream>
 #include <memory>
 
 constexpr size_t MIN_DEGREE = 3;
@@ -24,50 +25,21 @@ constexpr size_t MIN_DEGREE = 3;
  * */
 template <size_t M, properKeyValue Key, properKeyValue T = Key,
           std::predicate<Key, Key> Compare = std::less<Key>,
-          typename Indexer = Identity,
-          class Allocator = std::allocator<std::pair<const Key, T>>, //
-          size_t CHILD_COUNT = M, size_t KEY_COUNT = M - 1>
+          Indexor<Key, T> Indexer = Identity,
+          class Allocator = std::allocator<std::pair<const Key, T>>,
+          bool isSet = false, size_t CHILD_COUNT = M, size_t KEY_COUNT = M - 1>
+
 class BPlusTree {
 
   // M must be at least 3
   static_assert(M >= MIN_DEGREE, "M(B+Tree degree) must be at least 3");
 
   // T must not be functor
-  static_assert(
-      NonFunctor<T>,
-      "T must not be a functor or predicate, this issue proably means that the "
-      "predicate wasn't detected by sfinae due to wrong template parameters.\n "
-      "Eg. operator()(int, int) When Key is float");
-
-  // potential missuse of CHILD_COUNT and KEY_COUNT
-  static_assert(CHILD_COUNT == M,
-                "CHILD_COUNT must not be manually changed\nIf you want to "
-                "change the order of the "
-                "tree, change M\nCHILD_COUNT is used for internal purposes");
-  static_assert(KEY_COUNT == M - 1,
-                "KEY_COUNT must not be manually changed\nIf you want to change "
-                "the order of "
-                "the tree, change M\nKEY_COUNT is used for internal purposes");
-
-  // Indexor asserts
-  // static_assert(!(std::is_same<Indexer, Identity>::value &&
-  //                 !std::is_same<Key, T>::value),
-  //               "If Indexor is Identity, then Key and T must be the same");
-
-  // if Key == T, then Indexor must be Identity
-  static_assert(std::is_same<Indexer, Identity>::value ||
-                    !std::is_same<Key, T>::value,
-                "If Key and T are the same, then Indexor must be Identity");
-
-  using isSet =
-      std::integral_constant<bool, std::is_same<Indexer, Identity>::value &&
-                                       std::is_same<Key, T>::value>;
-
-  // if Indexor is not Identity, then it must be a functor
-  static_assert(
-      std::is_same<Indexer, Identity>::value || is_indexer<Indexer, T, Key>,
-      "Indexor must be a functor or function\nIf you want to use Identity, "
-      "then Key and T must be the same");
+  // static_assert(
+  //     NonFunctor<T>,
+  //     "T must not be a functor or predicate, this issue proably means that
+  //     the " "predicate wasn't detected by sfinae due to wrong template
+  //     parameters.\n " "Eg. operator()(int, int) When Key is float");
 
   template <bool isConst> class BPlusTreeIterator;
   class Node;
@@ -89,8 +61,7 @@ public:
   using mapped_type = T;
 
   /// @brief Type definition for representing value pairs in BPlusTree
-  using value_type =
-      std::conditional_t<isSet::value, Key, std::pair<const Key, T>>;
+  using value_type = std::conditional_t<isSet, Key, std::pair<Key, T>>;
 
   /// @brief Type definition for representing size in BPlusTree
   using size_type = size_t;
@@ -140,10 +111,19 @@ public:
   /// @details These constructors allow for any combination of comp, alloc and
   /// indexor to be configured at construction time.
 
+protected:
   /// @{
   /// @brief Default constructor
   /// @details It uses default comparator, allocator and indexer.
-  BPlusTree() : BPlusTree(Compare()) {}
+  BPlusTree() : BPlusTree(Compare()) {
+    std::cout << "Called default constructor\n";
+
+    if (isSet) {
+      std::cout << "Set\n";
+    } else {
+      std::cout << "Map\n";
+    }
+  }
 
   /// @brief Comprehensive constructor
   /// @details It allows configuration of comparator, allocator and indexer.
@@ -185,7 +165,10 @@ public:
   template <ValueInputIterator<value_type> InputIt>
   BPlusTree(InputIt first, InputIt last, const Compare &comp,
             const Allocator &alloc = Allocator(),
-            const Indexer &indexor = Indexer());
+            const Indexer &indexor = Indexer())
+      : m_comp(comp), m_allocator(alloc), m_indexor(indexor) {
+    insert(first, last);
+  }
 
   /// @brief Iterator and Allocator-based constructor
   /// @details Allows input of range and configuration of allocator and indexer.
@@ -306,6 +289,7 @@ public:
   BPlusTree(std::initializer_list<value_type> init, const Indexer &indexor)
       : BPlusTree(init, Compare(), Allocator(), indexor) {}
 
+public:
   /// @}
 
   ~BPlusTree();
@@ -363,15 +347,23 @@ public:
   std::pair<iterator, bool> insert(const value_type &value);
 
   template <rvalue_constructible_from<value_type> P>
-  std::pair<iterator, bool> insert(P &&value);
+  std::pair<iterator, bool> insert(P &&value) {
+    emplace(std::forward<P>(value));
+  }
+
   std::pair<iterator, bool> insert(value_type &&value);
+
   iterator insert(const_iterator position, const value_type &value);
+
   template <rvalue_constructible_from<value_type> P>
-  iterator insert(const_iterator position, P &&value);
+  iterator insert(const_iterator position, P &&value) {
+    emplace_hint(position, std::forward<P>(value));
+  }
+
   iterator insert(const_iterator position, value_type &&value);
 
   template <ValueInputIterator<value_type> InputIt>
-  void insert(InputIt first, InputIt last);
+  void insert(InputIt first, InputIt last) {}
 
   void insert(std::initializer_list<value_type> ilist);
 
@@ -386,24 +378,24 @@ public:
   iterator insert_or_assign(const_iterator hint, key_type &&key, P &&obj);
 
   // emplace
-  template <std::constructible_from<value_type>... Args>
+  template <InverseConstructibleFrom<value_type>... Args>
   std::pair<iterator, bool> emplace(Args &&...args);
 
   // emplace_hint
-  template <std::constructible_from<value_type>... Args>
+  template <InverseConstructibleFrom<value_type>... Args>
   iterator emplace_hint(const_iterator hint, Args &&...args);
 
   // try_emplace
-  template <std::constructible_from<mapped_type>... Args>
+  template <InverseConstructibleFrom<mapped_type>... Args>
   std::pair<iterator, bool> try_emplace(const key_type &key, Args &&...args);
 
-  template <std::constructible_from<mapped_type>... Args>
+  template <InverseConstructibleFrom<mapped_type>... Args>
   std::pair<iterator, bool> try_emplace(key_type &&key, Args &&...args);
 
-  template <std::constructible_from<mapped_type>... Args>
+  template <InverseConstructibleFrom<mapped_type>... Args>
   iterator try_emplace(const_iterator hint, const key_type &key,
                        Args &&...args);
-  template <std::constructible_from<mapped_type>... Args>
+  template <InverseConstructibleFrom<mapped_type>... Args>
   iterator try_emplace(const_iterator hint, key_type &&key, Args &&...args);
 
   // erase
@@ -457,6 +449,8 @@ public:
   const_iterator upper_bound(const Key &key) const;
   template <ComparableKey<key_type> K> iterator upper_bound(const K &key);
   template <ComparableKey<key_type> K> const_iterator upper_bound(const K &key);
+
+  bool isMap() { return !isSet; }
 
   /// @}
 
@@ -519,32 +513,32 @@ private:
   indexor m_indexor;
 };
 
-template <size_t M, properKeyValue Key, std::predicate<Key, Key> Compare,
-          typename Indexer>
-  requires(M >= MIN_DEGREE)
-class BPlusTree<M, Key, Compare, Indexer>
-    : public BPlusTree<M, Key, Key, Compare, Indexer> {};
-
-template <size_t M, properKeyValue Key, std::predicate<Key, Key> Compare>
-  requires(M >= MIN_DEGREE)
-class BPlusTree<M, Key, Compare> : public BPlusTree<M, Key, Key, Compare> {};
-
 #define BPLUS_TEMPLATES                                                        \
   size_t M, properKeyValue Key, properKeyValue T,                              \
-      std::predicate<Key, Key> Compare, typename Indexer, class Allocator,     \
-      size_t CHILD_COUNT, size_t KEY_COUNT
+      std::predicate<Key, Key> Compare, Indexor<Key, T> Indexer,               \
+      class Allocator, bool isSet, size_t CHILD_COUNT, size_t KEY_COUNT
 
 #define BPLUS_TEMPLATE_PARAMS                                                  \
-  M, Key, T, Compare, Indexer, Allocator, CHILD_COUNT, KEY_COUNT
+  M, Key, T, Compare, Indexer, Allocator, isSet, CHILD_COUNT, KEY_COUNT
 
-template <BPLUS_TEMPLATES>
-using isSet =
-    std::integral_constant<bool, std::is_same<Indexer, Identity>::value &&
-                                     std::is_same<Key, T>::value>;
+/******************
+*******************
+*  Helper classes *
+*******************
+******************/
 
-template <BPLUS_TEMPLATES>
-using value_type = std::conditional_t<isSet<BPLUS_TEMPLATE_PARAMS>::value, Key,
-                                      std::pair<const Key, T>>;
+template <size_t M, properKeyValue Key, properKeyValue T,
+          std::predicate<Key, Key> Compare = std::less<Key>,
+          Indexor<Key, T> Indexer = UnusableIndexor<Key>,
+          class Allocator = std::allocator<std::pair<const Key, T>>>
+class Map : public BPlusTree<M, Key, T, Compare, Indexer, Allocator, false, M,
+                             M - 1> {};
+
+template <size_t M, properKeyValue Key,
+          std::predicate<Key, Key> Compare = std::less<Key>,
+          class Allocator = std::allocator<Key>>
+class Set : public BPlusTree<M, Key, Key, Compare, Identity, Allocator, true, M,
+                             M - 1> {};
 
 /******************
 *******************
@@ -555,17 +549,6 @@ using value_type = std::conditional_t<isSet<BPLUS_TEMPLATE_PARAMS>::value, Key,
 // *** Constructors *** //
 template <BPLUS_TEMPLATES> BPlusTree<BPLUS_TEMPLATE_PARAMS>::~BPlusTree() {
   delete m_root;
-}
-
-template <BPLUS_TEMPLATES>
-template <ValueInputIterator<value_type<BPLUS_TEMPLATE_PARAMS>> InputIt>
-BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(InputIt first, InputIt last,
-                                            const Compare &comp,
-                                            const Allocator &alloc,
-                                            const Indexer &indexor)
-    : m_comp(comp), m_allocator(alloc), m_indexor(indexor) {
-
-  insert(first, last);
 }
 
 template <BPLUS_TEMPLATES>
@@ -606,8 +589,7 @@ template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other) noexcept
     : m_root(std::exchange(other.m_root, nullptr)),
       m_allocator(std::move(other.m_allocator)),
-      m_comp(std::move(other.m_allocator)),
-      m_indexor(std::move(other.m_indexor)) {}
+      m_comp(std::move(other.m_comp)), m_indexor(std::move(other.m_indexor)) {}
 
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other,
@@ -687,27 +669,17 @@ auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const value_type &value)
     -> std::pair<iterator, bool> {}
 
 template <BPLUS_TEMPLATES>
-template <rvalue_constructible_from<value_type<BPLUS_TEMPLATE_PARAMS>> P>
-auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(P &&value)
-    -> std::pair<iterator, bool> {}
-template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(value_type &&value)
     -> std::pair<iterator, bool> {}
+
 template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const_iterator position,
                                               const value_type &value)
     -> iterator {}
-template <BPLUS_TEMPLATES>
-template <rvalue_constructible_from<value_type<BPLUS_TEMPLATE_PARAMS>> P>
-auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const_iterator position,
-                                              P &&value) -> iterator {}
+
 template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const_iterator position,
                                               value_type &&value) -> iterator {}
-
-template <BPLUS_TEMPLATES>
-template <ValueInputIterator<value_type<BPLUS_TEMPLATE_PARAMS>> InputIt>
-void BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(InputIt first, InputIt last) {}
 
 template <BPLUS_TEMPLATES>
 void BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(

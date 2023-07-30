@@ -2,22 +2,23 @@
 #include <type_traits>
 
 #include "BPlusTree.hpp"
-#include "Concepts.hpp"
 
 TEST(TemplateParametersTesting, OnlyKey) {
   using key_type = int;
-  BPlusTree<4, key_type> tree;
+  Set<4, key_type> tree;
 
   ASSERT_TRUE((std::is_same_v<decltype(tree)::key_type, key_type>));
+  ASSERT_TRUE(tree.isMap() == false);
 }
 
 TEST(TemplateParametersTesting, KeyAndValue) {
 
   using key_type = int;
   using value_type = int;
-  BPlusTree<4, key_type, value_type> tree;
+  Map<4, key_type, value_type> tree;
   ASSERT_TRUE((std::is_same_v<decltype(tree)::key_type, key_type>));
   ASSERT_TRUE((std::is_same_v<decltype(tree)::mapped_type, value_type>));
+  ASSERT_TRUE(tree.isMap() == true);
 }
 
 class FloatCompare {
@@ -28,9 +29,10 @@ public:
 TEST(TemplateParametersTesting, KeyValueAndCompare) {
 
   using key_type = int;
-  BPlusTree<4, key_type, FloatCompare> tree;
+  Set<4, key_type, FloatCompare> tree;
 
   ASSERT_TRUE((std::is_same_v<decltype(tree)::key_type, key_type>));
+  ASSERT_TRUE(tree.isMap() == false);
 
   ASSERT_FALSE(
       (std::is_same_v<decltype(tree)::key_compare, std::less<key_type>>));

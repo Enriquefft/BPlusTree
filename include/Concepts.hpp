@@ -9,21 +9,24 @@
 /// @brief Concepts that the B+Tree members use
 /// @{
 
-template <typename Key, typename C>
+template <typename C, typename Key>
 concept ComparableKey = std::equality_comparable_with<Key, C>;
 
-template <class T, class... Args>
+template <typename P, typename value_type>
 concept rvalue_constructible_from =
-    std::destructible<T> && std::is_constructible_v<T, Args &&...>;
+    std::destructible<value_type> && std::is_constructible_v<value_type, P &&>;
 
-template <typename mapped_type, typename M>
-concept MappedAssignable = std::assignable_from<mapped_type &, M &&>;
+template <typename P, typename mapped_type>
+concept MappedAssignable = std::assignable_from<mapped_type &, P &&>;
 
-template <typename value_type, typename InputIt>
+template <typename InputIt, typename value_type>
 concept ValueInputIterator =
     std::input_iterator<InputIt> &&
     std::constructible_from<value_type,
                             typename std::iterator_traits<InputIt>::value_type>;
+
+template <typename T, typename... Args>
+concept InverseConstructibleFrom = (std::constructible_from<Args, T> && ...);
 
 /// @}
 
@@ -49,30 +52,19 @@ struct Identity {
   [[nodiscard]] static bool isIdentity() { return true; }
 };
 
-/**
- * @brief Concept for a functor
- * */
-template <typename T, typename = void> struct is_functor : std::false_type {};
+// Trivial, unusable indexor, not meant to work
+template <typename Key> struct UnusableIndexor {
+  template <typename T> auto operator()(T && /*unused*/) const -> Key {
+    return {};
+  }
+  [[nodiscard]] static bool isIdentity() { return false; }
+};
 
-/// @cond
-template <typename T>
-struct is_functor<T, std::void_t<decltype(&T::operator())>> : std::true_type {};
-/// @endcond
-
-/**
- * @brief Concept for a non functor
- * */
-template <typename T>
-concept NonFunctor = !
-is_functor<T>::value;
-
-/**
- * @brief Concept for an indexer callable
- */
-template <typename Functor, typename T, typename Key>
-concept is_indexer = requires(Functor f, T v) {
-                       { f(v) } -> std::convertible_to<Key>;
-                     };
+// specifies that F is a callable that accepts T as it argument, it can be
+// invoked with it to return Key
+template <typename F, typename Key, typename T>
+concept Indexor = std::regular_invocable<F, T> &&
+                  std::convertible_to<std::invoke_result_t<F, T>, Key>;
 
 /**
  * @brief Concept for a proper key value
