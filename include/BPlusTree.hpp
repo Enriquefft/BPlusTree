@@ -2,9 +2,10 @@
 #define BPlusTree_HPP
 
 #include "Concepts.hpp"
+#include <cmath>
 #include <functional>
-#include <iostream>
 #include <memory>
+#include <variant>
 
 constexpr size_t MIN_DEGREE = 3;
 
@@ -26,23 +27,19 @@ constexpr size_t MIN_DEGREE = 3;
 template <size_t M, properKeyValue Key, properKeyValue T = Key,
           std::predicate<Key, Key> Compare = std::less<Key>,
           Indexor<Key, T> Indexer = Identity,
-          class Allocator = std::allocator<std::pair<const Key, T>>,
-          bool isSet = false, size_t CHILD_COUNT = M, size_t KEY_COUNT = M - 1>
+          IsAllocator Allocator = std::allocator<std::pair<const Key, T>>,
+          bool isSet = false, size_t MAX_CHILDS = M, size_t MAX_KEYS = M - 1>
+// Ugly solution, but allows for compile time usage of constants.
 
 class BPlusTree {
+  size_t C_MIN_CHILDS = std::ceil(M / 2);
+  size_t C_MIN_KEYS = std::ceil(M / 2) - 1;
 
   // M must be at least 3
   static_assert(M >= MIN_DEGREE, "M(B+Tree degree) must be at least 3");
 
-  // T must not be functor
-  // static_assert(
-  //     NonFunctor<T>,
-  //     "T must not be a functor or predicate, this issue proably means that
-  //     the " "predicate wasn't detected by sfinae due to wrong template
-  //     parameters.\n " "Eg. operator()(int, int) When Key is float");
-
   template <bool isConst> class BPlusTreeIterator;
-  class Node;
+  class NodeHandler;
   class LeafNode;
   class InternalNode;
 
@@ -442,7 +439,7 @@ public:
   template <ComparableKey<key_type> K> iterator upper_bound(const K &key);
   template <ComparableKey<key_type> K> const_iterator upper_bound(const K &key);
 
-  bool isMap() { return !isSet; }
+  bool is_map() { return !isSet; }
 
   /// @}
 
@@ -450,21 +447,21 @@ private:
   // Internal use classes
 
   /**
-   * @class Node
+   * @class NodeHandler
    * @brief Base Node structure for B+ tree.
    * @details The Node structure consists of an array of keys and a flag for
    * whether the node is a leaf. It is the base class for both @ref LeafNode
    * "LeafNode" and @ref InternalNode "InternalNode".
    */
-  class Node {
-    std::array<Key, KEY_COUNT> keys; ///< Array of (M-1) keys
+  class NodeHandler {
+
+    std::variant<LeafNode, InternalNode> m_node;
     /**
      * @brief Boolean flag to know whether the node is a leaf.
-     *
      * Used to maintain:
      * https://en.wikipedia.org/wiki/Liskov_substitution_principle
      */
-    bool isLeaf;
+    bool m_isLeaf;
   };
 
   /**
@@ -473,11 +470,11 @@ private:
    * @details The LeafNode class inherits from @ref Node "Node" and adds an
    * array of values and pointers to the next and previous leaf nodes.
    * */
-  class LeafNode : public Node {
-    std::array<value_type, KEY_COUNT>
-        values;     ///< Array of (M-1) values_types (key-value pairs)
-    LeafNode *next; ///< Pointer to next leaf node
-    LeafNode *prev; ///< Pointer to previous leaf node
+  class LeafNode {
+    std::array<value_type, MAX_KEYS>
+        m_values;     ///< Array of (M-1) values_types (key-value pairs)
+    LeafNode *m_next; ///< Pointer to next leaf node
+    LeafNode *m_prev; ///< Pointer to previous leaf node
   };
 
   /**
@@ -486,8 +483,9 @@ private:
    * @details The InternalNode class inherits from @ref Node "Node" and adds an
    * array of pointers to child nodes.
    * */
-  class InternalNode : public Node {
-    std::array<Node *, CHILD_COUNT> children; ///< Array of M children
+  class InternalNode {
+    std::array<Key, MAX_KEYS> m_keys;                 ///< Array of (M-1) keys
+    std::array<NodeHandler *, MAX_CHILDS> m_children; ///< Array of M children
   };
 
   /**
@@ -499,7 +497,7 @@ private:
   template <bool isConst> class BPlusTreeIterator {};
 
   // Private members
-  Node *m_root = nullptr;
+  NodeHandler *m_root = nullptr;
   allocator_type m_allocator;
   key_compare m_comp;
   indexor m_indexor;
@@ -508,7 +506,7 @@ private:
 #define BPLUS_TEMPLATES                                                        \
   size_t M, properKeyValue Key, properKeyValue T,                              \
       std::predicate<Key, Key> Compare, Indexor<Key, T> Indexer,               \
-      class Allocator, bool isSet, size_t CHILD_COUNT, size_t KEY_COUNT
+      IsAllocator Allocator, bool isSet, size_t CHILD_COUNT, size_t KEY_COUNT
 
 #define BPLUS_TEMPLATE_PARAMS                                                  \
   M, Key, T, Compare, Indexer, Allocator, isSet, CHILD_COUNT, KEY_COUNT

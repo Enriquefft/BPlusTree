@@ -9,6 +9,14 @@
 /// @brief Concepts that the B+Tree members use
 /// @{
 
+template <typename T>
+concept IsAllocator =
+    requires(T alloc, std::size_t n) {
+      typename T::value_type;
+      { alloc.allocate(n) } -> std::same_as<typename T::value_type *>;
+      { alloc.deallocate(std::declval<typename T::value_type *>(), n) };
+    };
+
 template <typename C, typename Key>
 concept ComparableKey = std::equality_comparable_with<Key, C>;
 
@@ -28,38 +36,6 @@ concept ValueInputIterator =
 template <typename T, typename... Args>
 concept InverseConstructibleFrom = (std::constructible_from<Args, T> && ...);
 
-/// @}
-
-/**
- * @brief Default Indexor function: Identity
- * @details
- * This function is used to extract the key from the value when the key is the
- * value, in other words, it returns itself
- * */
-struct Identity {
-  /**
-   * @brief Indexor function
-   * @param v Value to return
-   */
-  template <typename U>
-  auto operator()(U &&v) const -> decltype(std::forward<U>(v)) {
-    return std::forward<U>(v);
-  }
-  /**
-   * @brief Check if the function is the identity
-   * @return true
-   */
-  [[nodiscard]] static bool isIdentity() { return true; }
-};
-
-// Trivial, unusable indexor, not meant to work
-template <typename Key> struct UnusableIndexor {
-  template <typename T> auto operator()(T && /*unused*/) const -> Key {
-    return {};
-  }
-  [[nodiscard]] static bool isIdentity() { return false; }
-};
-
 // specifies that F is a callable that accepts T as it argument, it can be
 // invoked with it to return Key
 template <typename F, typename Key, typename T>
@@ -75,5 +51,38 @@ concept Indexor = std::regular_invocable<F, T> &&
 template <typename Key>
 concept properKeyValue = std::copy_constructible<Key> && !
 std::is_function_v<std::remove_pointer_t<Key>>;
+
+/// @}
+
+/**
+ * @brief Default Indexor function: Identity
+ * @details
+ * This function is used to extract the key from the value when the key is the
+ * value, in other words, it returns itself
+ * */
+struct Identity {
+  /**
+   * @brief Indexor function
+   * @param value Value to return
+   */
+  template <typename U>
+  auto operator()(U &&value) const -> decltype(std::forward<U>(value)) {
+    return std::forward<U>(value);
+  }
+  /**
+   * @brief Check if the function is the identity
+   * @return true
+   */
+  [[nodiscard]] static bool isIdentity() { return true; }
+};
+
+// Trivial, unusable indexor, not meant to work
+template <typename Key> struct UnusableIndexor {
+  template <typename T> auto operator()(T && /*unused*/) const -> Key {
+    throw std::logic_error("Unusable indexor called");
+    return {};
+  }
+  [[nodiscard]] static bool isIdentity() { return false; }
+};
 
 #endif // !CONCEPTS_B_PLUS_TREE_HPP

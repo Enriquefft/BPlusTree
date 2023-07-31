@@ -6,7 +6,7 @@
 template <size_t M, properKeyValue Key, properKeyValue T,
           std::predicate<Key, Key> Compare = std::less<Key>,
           Indexor<Key, T> Indexer = UnusableIndexor<Key>,
-          class Allocator = std::allocator<std::pair<const Key, T>>>
+          IsAllocator Allocator = std::allocator<std::pair<const Key, T>>>
 struct Map : public BPlusTree<M, Key, T, Compare, Indexer, Allocator, false, M,
                               M - 1> {
 

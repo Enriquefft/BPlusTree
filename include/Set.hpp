@@ -5,7 +5,7 @@
 
 template <size_t M, properKeyValue Key,
           std::predicate<Key, Key> Compare = std::less<Key>,
-          class Allocator = std::allocator<Key>>
+          IsAllocator Allocator = std::allocator<Key>>
 struct Set : public BPlusTree<M, Key, Key, Compare, Identity, Allocator, true,
                               M, M - 1> {
 
