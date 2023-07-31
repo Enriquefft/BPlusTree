@@ -14,8 +14,6 @@ target_include_directories(bplus_tree PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_features(bplus_tree PRIVATE cxx_std_20)
 
-target_compile_options(bplus_tree PRIVATE -Wall -Wextra -Wpedantic)
-
 target_compile_options(
   bplus_tree
   PRIVATE # Prefered warnings
