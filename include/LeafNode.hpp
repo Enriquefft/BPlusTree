@@ -5,6 +5,9 @@
 #include "Iterator.hpp"
 #include <memory>
 
+// Debug
+#include "iostream"
+
 template <size_t M, properKeyValue Key, properKeyValue T,
           std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,
           size_t MAX_CHILDS, size_t MAX_KEYS>
@@ -98,7 +101,8 @@ auto LeafNode<BPLUS_TEMPLATE_PARAMS>::insert(const value_type &value)
   }
 
   // If the value is already in the array, return false
-  if (position != m_values.end() && (*position)->first == (value.first)) {
+  if (position != m_values.end() && (*position != nullptr) &&
+      (*position)->first == (value.first)) {
     return {{}, INSERTION::ALREADY_EXISTS};
   }
 

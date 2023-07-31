@@ -10,7 +10,7 @@ TEST(BPlusTreeTest, InsertionTest1) {
   ASSERT_EQ(tree.is_map(), true);
 
   auto succes = tree.insert({1, 1});
-  ASSERT_TRUE(succes.first.get_value<InsertResult>() == INSERTION::SUCCESS);
+  ASSERT_TRUE(succes.second == INSERTION::SUCCESS);
 
   // ASSERT_TRUE(pair.second);
 
