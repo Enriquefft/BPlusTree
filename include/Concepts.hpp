@@ -36,11 +36,31 @@ concept ValueInputIterator =
 template <typename T, typename... Args>
 concept InverseConstructibleFrom = (std::constructible_from<Args, T> && ...);
 
-// specifies that F is a callable that accepts T as it argument, it can be
-// invoked with it to return Key
-template <typename F, typename Key, typename T>
-concept Indexor = std::regular_invocable<F, T> &&
-                  std::convertible_to<std::invoke_result_t<F, T>, Key>;
+struct InsertResult {
+  bool inserted;
+  bool alreadyExists;
+  bool wasFull;
+
+  // spaceship operator
+  [[nodiscard]] friend constexpr auto
+  operator==(const InsertResult &lhs, const InsertResult &rhs) noexcept {
+    return lhs.inserted == rhs.inserted &&
+           lhs.alreadyExists == rhs.alreadyExists && lhs.wasFull == rhs.wasFull;
+  }
+  [[nodiscard]] friend constexpr auto
+  operator!=(const InsertResult &lhs, const InsertResult &rhs) noexcept {
+    return !(lhs == rhs);
+  }
+
+  // bool
+  [[nodiscard]] constexpr operator bool() const noexcept { return inserted; }
+  [[nodiscard]] constexpr bool operator!() const noexcept { return !inserted; }
+};
+namespace INSERTION {
+[[maybe_unused]] constexpr InsertResult SUCCESS{true, false, false};
+[[maybe_unused]] constexpr InsertResult ALREADY_EXISTS{false, true, false};
+[[maybe_unused]] constexpr InsertResult WAS_FULL{false, false, true};
+} // namespace INSERTION
 
 /**
  * @brief Concept for a proper key value
@@ -53,36 +73,5 @@ concept properKeyValue = std::copy_constructible<Key> && !
 std::is_function_v<std::remove_pointer_t<Key>>;
 
 /// @}
-
-/**
- * @brief Default Indexor function: Identity
- * @details
- * This function is used to extract the key from the value when the key is the
- * value, in other words, it returns itself
- * */
-struct Identity {
-  /**
-   * @brief Indexor function
-   * @param value Value to return
-   */
-  template <typename U>
-  auto operator()(U &&value) const -> decltype(std::forward<U>(value)) {
-    return std::forward<U>(value);
-  }
-  /**
-   * @brief Check if the function is the identity
-   * @return true
-   */
-  [[nodiscard]] static bool isIdentity() { return true; }
-};
-
-// Trivial, unusable indexor, not meant to work
-template <typename Key> struct UnusableIndexor {
-  template <typename T> auto operator()(T && /*unused*/) const -> Key {
-    throw std::logic_error("Unusable indexor called");
-    return {};
-  }
-  [[nodiscard]] static bool isIdentity() { return false; }
-};
 
 #endif // !CONCEPTS_B_PLUS_TREE_HPP

@@ -3,13 +3,13 @@
 
 #include "Concepts.hpp"
 template <size_t M, properKeyValue Key, properKeyValue T,
-          std::predicate<Key, Key> Compare, Indexor<Key, T> Indexer,
-          IsAllocator Allocator, bool isSet, size_t MAX_CHILDS, size_t MAX_KEYS>
+          std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,
+          size_t MAX_CHILDS, size_t MAX_KEYS>
 class BPlusTree;
 
 template <size_t M, properKeyValue Key, properKeyValue T,
-          std::predicate<Key, Key> Compare, Indexor<Key, T> Indexer,
-          IsAllocator Allocator, bool isSet, size_t MAX_CHILDS, size_t MAX_KEYS>
+          std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,
+          size_t MAX_CHILDS, size_t MAX_KEYS>
 class NodeHandler;
 
 /**
@@ -19,16 +19,15 @@ class NodeHandler;
  * array of pointers to child nodes.
  * */
 template <size_t M, properKeyValue Key, properKeyValue T,
-          std::predicate<Key, Key> Compare, Indexor<Key, T> Indexer,
-          IsAllocator Allocator, bool isSet, size_t MAX_CHILDS = M,
-          size_t MAX_KEYS = M - 1>
+          std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,
+          size_t MAX_CHILDS = M, size_t MAX_KEYS = M - 1>
 class InternalNode {
-  friend class BPlusTree<M, Key, T, Compare, Indexer, Allocator, isSet,
-                         MAX_CHILDS, MAX_KEYS>;
+  friend class BPlusTree<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS,
+                         MAX_KEYS>;
 
 private:
-  using NodeHandler = NodeHandler<M, Key, T, Compare, Indexer, Allocator, isSet,
-                                  MAX_CHILDS, MAX_KEYS>;
+  using NodeHandler =
+      NodeHandler<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS, MAX_KEYS>;
   std::array<Key, MAX_KEYS> m_keys;                 ///< Array of (M-1) keys
   std::array<NodeHandler *, MAX_CHILDS> m_children; ///< Array of M children
 };

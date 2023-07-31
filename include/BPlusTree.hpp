@@ -2,6 +2,7 @@
 #define BPlusTree_HPP
 
 #include "Concepts.hpp"
+#include "Iterator.hpp"
 #include "NodeHandler.hpp"
 
 #include <cmath>
@@ -27,10 +28,11 @@ constexpr size_t MIN_DEGREE = 3;
  * */
 template <size_t M, properKeyValue Key, properKeyValue T = Key,
           std::predicate<Key, Key> Compare = std::less<Key>,
-          Indexor<Key, T> Indexer = Identity,
+
           IsAllocator Allocator = std::allocator<std::pair<const Key, T>>,
           bool isSet = false, size_t MAX_CHILDS = M, size_t MAX_KEYS = M - 1>
-// Ugly solution, but allows for compile time usage of constants.
+// Ugly solution, but allows for compile time usage of constants with 0
+// overhead.
 
 class BPlusTree {
   size_t C_MIN_CHILDS = std::ceil(M / 2);
@@ -39,12 +41,16 @@ class BPlusTree {
   // M must be at least 3
   static_assert(M >= MIN_DEGREE, "M(B+Tree degree) must be at least 3");
 
-  template <bool isConst> class BPlusTreeIterator;
-  using NodeHandler = NodeHandler<M, Key, T, Compare, Indexer, Allocator, isSet,
-                                  MAX_CHILDS, MAX_KEYS>;
+  using NodeHandler =
+      NodeHandler<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS, MAX_KEYS>;
 
   using LeafNode = typename NodeHandler::LeafNode;
   using InternalNode = typename NodeHandler::InternalNode;
+
+  template <bool isConst>
+  using BPlusTreeIterator =
+      BPlusTreeIterator<isConst, M, Key, T, Compare, Allocator, isSet,
+                        MAX_CHILDS, MAX_KEYS>;
 
 public:
   /// @defgroup TypeDefinitions Type Definitions
@@ -72,6 +78,7 @@ public:
 
   /// @brief Type definition for leaf node allocator in BPlusTree
   using allocator_type = Allocator;
+  using allocator_traits = std::allocator_traits<Allocator>;
 
   /// @brief Type definition for reference to the value_type
   using reference = value_type &;
@@ -80,11 +87,10 @@ public:
   using const_reference = const value_type &;
 
   /// @brief Type definition for pointer to the element in BPlusTree
-  using pointer = typename std::allocator_traits<Allocator>::pointer;
+  using pointer = typename allocator_traits::pointer;
 
   /// @brief Type definition for constant pointer to the element in BPlusTree
-  using const_pointer =
-      typename std::allocator_traits<Allocator>::const_pointer;
+  using const_pointer = typename allocator_traits::const_pointer;
 
   /// @brief Type definition for BPlusTree iterator
   using iterator = BPlusTreeIterator<false>;
@@ -98,99 +104,54 @@ public:
   /// @brief Type definition for constant reverse BPlusTree iterator
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-  /// @brief Type definition for indexor, used for testing purposes
-  using indexor = Indexer;
-
   /// @}
 
   /// @defgroup Constructors B+Tree Constructors
   /// @name Constructors
   /// @brief B+Tree constructors
   /// @details These constructors allow for any combination of comp, alloc and
-  /// indexor to be configured at construction time.
 
 protected:
   /// @{
   /// @brief Default constructor
-  /// @details It uses default comparator, allocator and indexer.
+  /// @details It uses default comparator, allocator.
   BPlusTree() : BPlusTree(Compare()) {}
 
   /// @brief Comprehensive constructor
-  /// @details It allows configuration of comparator, allocator and indexer.
+  /// @details It allows configuration of comparator, allocator.
   /// @param comp Comparator configuration.
   /// @param alloc Allocator configuration. Defaults to Allocator().
-  /// @param indexor Indexer configuration. Defaults to Indexer().
-  explicit BPlusTree(const Compare &comp, const Allocator &alloc = Allocator(),
-                     const Indexer &indexor = Indexer())
-      : m_comp(comp), m_leaf_allocator(alloc), m_indexor(indexor) {}
+  explicit BPlusTree(const Compare &comp, const Allocator &alloc = Allocator())
+      : m_comp(comp), m_leaf_allocator(alloc) {}
 
   /// @brief Allocator-based constructor
-  /// @details It allows configuration of allocator and indexer.
+  /// @details It allows for configuration of allocator.
   /// @param alloc Allocator configuration.
-  /// @param indexor Indexer configuration. Defaults to Indexer().
-  explicit BPlusTree(const Allocator &alloc, const Indexer &indexor = Indexer())
-      : BPlusTree(Compare(), alloc, indexor) {}
-
-  /// @brief Comparator & Indexer-based constructor
-  /// @details It allows configuration of comparator and indexer.
-  /// @param comp Comparator configuration.
-  /// @param indexor Indexer configuration.
-  explicit BPlusTree(const Compare &comp, const Indexer &indexor)
-      : BPlusTree(comp, Allocator(), indexor) {}
-
-  /// @brief Indexer-based constructor
-  /// @details It allows configuration of only indexer.
-  /// @param indexor Indexer configuration.
-  explicit BPlusTree(const Indexer &indexor)
-      : BPlusTree(Compare(), Allocator(), indexor) {}
+  explicit BPlusTree(const Allocator &alloc) : BPlusTree(Compare(), alloc) {}
 
   /// @brief Iterator-based constructor
-  /// @details Allows input of range and configuration of comparator, allocator
-  /// and indexer.
+  /// @details Allows input of range and configuration of comparator and
+  /// allocator
   /// @param [in] first Iterator pointing to the start of input range.
   /// @param [in] last Iterator pointing to the end of input range.
   /// @param comp Comparator.
   /// @param alloc Allocator. Defaults to Allocator().
-  /// @param indexor Indexer. Defaults to Indexer().
   template <ValueInputIterator<value_type> InputIt>
   BPlusTree(InputIt first, InputIt last, const Compare &comp,
-            const Allocator &alloc = Allocator(),
-            const Indexer &indexor = Indexer())
-      : m_comp(comp), m_leaf_allocator(alloc), m_indexor(indexor) {
+            const Allocator &alloc = Allocator())
+      : m_comp(comp), m_leaf_allocator(alloc) {
     insert(first, last);
   }
 
   /// @brief Iterator and Allocator-based constructor
-  /// @details Allows input of range and configuration of allocator and indexer.
+  /// @details Allows input of range and configuration of allocator.
   /// @param [in] first Iterator pointing to the start of input range.
   /// @param [in] last Iterator pointing to the end of input range.
   /// @param alloc Allocator.
-  /// @param indexor Indexer. Defaults to Indexer().
   template <ValueInputIterator<value_type> InputIt>
-  BPlusTree(InputIt first, InputIt last, const Allocator &alloc,
-            const Indexer &indexor = Indexer())
-      : BPlusTree(first, last, Compare(), alloc, indexor) {}
+  BPlusTree(InputIt first, InputIt last, const Allocator &alloc)
 
-  /// @brief Iterator and Comparator & Indexer-based constructor
-  /// @details Allows input of range and configuration of comparator and
-  /// indexer.
-  /// @param [in] first Iterator pointing to the start of input range.
-  /// @param [in] last Iterator pointing to the end of input range.
-  /// @param comp Comparator.
-  /// @param indexor Indexer.
-  template <ValueInputIterator<value_type> InputIt>
-  BPlusTree(InputIt first, InputIt last, const Compare &comp,
-            const Indexer &indexor)
-      : BPlusTree(first, last, comp, Allocator(), indexor) {}
-
-  /// @brief Iterator and Indexer-based constructor
-  /// @details Allows input of range and configuration of indexer.
-  /// @param [in] first Iterator pointing to the start of input range.
-  /// @param [in] last Iterator pointing to the end of input range.
-  /// @param indexor Indexer.
-  template <ValueInputIterator<value_type> InputIt>
-  BPlusTree(InputIt first, InputIt last, const Indexer &indexor)
-      : BPlusTree(first, last, Compare(), Allocator(), indexor) {}
+      : BPlusTree(first, last, Compare(), alloc) {}
 
   /// @brief Copy constructor
   /// @details Constructs a new object as a copy of an existing one
@@ -226,39 +187,16 @@ protected:
   /// @param init Initializer list to assign from.
   /// @param comp Comparator.
   /// @param alloc Allocator. Defaults to Allocator().
-  /// @param indexor Indexer. Defaults to Indexer().
   BPlusTree(std::initializer_list<value_type> init, const Compare &comp,
-            const Allocator &alloc = Allocator(),
-            const Indexer &indexor = Indexer());
+            const Allocator &alloc = Allocator());
 
   /// @brief Iterator and Allocator-based constructor
-  /// @details Allows input of range and configuration of allocator and indexer.
+  /// @details Allows input of range and configuration of allocator.
   /// @param [in] first Iterator pointing to the start of input range.
   /// @param [in] last Iterator pointing to the end of input range.
   /// @param alloc Allocator.
-  /// @param indexor Indexer. Defaults to Indexer().
-  BPlusTree(std::initializer_list<value_type> init, const Allocator &alloc,
-            const Indexer &indexor = Indexer())
-      : BPlusTree(init, Compare(), alloc, indexor) {}
-
-  /// @brief Iterator and Comparator & Indexer-based constructor
-  /// @details Allows input of range and configuration of comparator and
-  /// indexer.
-  /// @param [in] first Iterator pointing to the start of input range.
-  /// @param [in] last Iterator pointing to the end of input range.
-  /// @param comp Comparator.
-  /// @param indexor Indexer.
-  BPlusTree(std::initializer_list<value_type> init, const Compare &comp,
-            const Indexer &indexor)
-      : BPlusTree(init, comp, Allocator(), indexor) {}
-
-  /// @brief Iterator and Indexer-based constructor
-  /// @details Allows input of range and configuration of indexer.
-  /// @param [in] first Iterator pointing to the start of input range.
-  /// @param [in] last Iterator pointing to the end of input range.
-  /// @param indexor Indexer.
-  BPlusTree(std::initializer_list<value_type> init, const Indexer &indexor)
-      : BPlusTree(init, Compare(), Allocator(), indexor) {}
+  BPlusTree(std::initializer_list<value_type> init, const Allocator &alloc)
+      : BPlusTree(init, Compare(), alloc) {}
 
 public:
   /// @brief Move assignment operator
@@ -281,8 +219,6 @@ public:
   BPlusTree &operator=(std::initializer_list<value_type> ilist);
 
   /// @}
-
-  ~BPlusTree();
 
   /**
    * @name Element access
@@ -445,28 +381,19 @@ public:
   /// @}
 
 private:
-  /**
-   * @class BPlusTreeIterator
-   * @brief Iterator for B+ tree.
-   * @details The BPlusTreeIterator class is a bidirectional iterator which
-   * follows the standard
-   * */
-  template <bool isConst> class BPlusTreeIterator {};
-
   // Private members
-  NodeHandler *m_root = nullptr;
+  NodeHandler m_root = nullptr;
   allocator_type m_leaf_allocator;
   key_compare m_comp;
-  indexor m_indexor;
 };
 
 #define BPLUS_TEMPLATES                                                        \
   size_t M, properKeyValue Key, properKeyValue T,                              \
-      std::predicate<Key, Key> Compare, Indexor<Key, T> Indexer,               \
-      IsAllocator Allocator, bool isSet, size_t CHILD_COUNT, size_t KEY_COUNT
+      std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,     \
+      size_t CHILD_COUNT, size_t KEY_COUNT
 
 #define BPLUS_TEMPLATE_PARAMS                                                  \
-  M, Key, T, Compare, Indexer, Allocator, isSet, CHILD_COUNT, KEY_COUNT
+  M, Key, T, Compare, Allocator, isSet, CHILD_COUNT, KEY_COUNT
 
 /******************
 *******************
@@ -475,17 +402,13 @@ private:
 ******************/
 
 // *** Constructors *** //
-template <BPLUS_TEMPLATES> BPlusTree<BPLUS_TEMPLATE_PARAMS>::~BPlusTree() {
-  delete m_root;
-}
 
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other)
     : m_comp(other.m_comp),
       m_leaf_allocator(
           std::allocator_traits<allocator_type>::
-              select_on_container_copy_construction(other.m_leaf_allocator)),
-      m_indexor(other.m_indexor) {
+              select_on_container_copy_construction(other.m_leaf_allocator)) {
 
   if (other.m_root != nullptr) {
     // InternalNode or LeafNode
@@ -498,8 +421,7 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other)
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other,
                                             const Allocator &alloc)
-    : m_comp(other.m_comp), m_leaf_allocator(alloc),
-      m_indexor(other.m_indexor) {
+    : m_comp(other.m_comp), m_leaf_allocator(alloc) {
 
   if (alloc == other.m_leaf_allocator) {
     if (other.m_root != nullptr) {
@@ -519,12 +441,12 @@ template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other) noexcept
     : m_root(std::exchange(other.m_root, nullptr)),
       m_leaf_allocator(std::move(other.m_leaf_allocator)),
-      m_comp(std::move(other.m_comp)), m_indexor(std::move(other.m_indexor)) {}
+      m_comp(std::move(other.m_comp)) {}
 
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other,
                                             const Allocator &alloc)
-    : m_comp(other.m_comp), m_indexor(other.m_indexor) {
+    : m_comp(other.m_comp) {
 
   if (alloc == other.m_leaf_allocator) {
     m_leaf_allocator = std::move(other.m_leaf_allocator);
@@ -547,7 +469,6 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(BPlusTree &&other) noexcept {
     m_root = std::exchange(other.m_root, nullptr);
     m_leaf_allocator = std::move(other.m_leaf_allocator);
     m_comp = std::move(other.m_comp);
-    m_indexor = std::move(other.m_indexor);
   }
 
   return *this;
@@ -561,7 +482,6 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(const BPlusTree &other) {
     this->clear();
     m_leaf_allocator = other.m_leaf_allocator;
     m_comp = other.m_comp;
-    m_indexor = other.m_indexor;
 
     if (other.m_root != nullptr) {
       // InternalNode or LeafNode
@@ -587,8 +507,8 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS> &BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(
     std::initializer_list<value_type> init, const Compare &comp,
-    const Allocator &alloc, const Indexer &indexor)
-    : m_comp(comp), m_leaf_allocator(alloc), m_indexor(indexor) {
+    const Allocator &alloc)
+    : m_comp(comp), m_leaf_allocator(alloc) {
   insert(init);
 }
 
@@ -599,31 +519,46 @@ auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const value_type &value)
     -> std::pair<iterator, bool> {
 
   if (m_root == nullptr) {
-    m_root = m_leaf_allocator.allocate(1);
+    m_root = new LeafNode(m_leaf_allocator, m_comp);
   }
-  m_root->insert(value);
+  m_root.insert(value);
 }
 
 template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(value_type &&value)
     -> std::pair<iterator, bool> {
   if (m_root == nullptr) {
-    m_root = m_leaf_allocator.allocate(1);
+    m_root = new LeafNode(m_leaf_allocator, m_comp);
   }
-  m_root->insert(std::move(value));
+  return m_root.insert(std::move(value));
 }
 
 template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const_iterator position,
                                               const value_type &value)
-    -> iterator {}
+    -> iterator {
+  if (m_root == nullptr) {
+    m_root = new LeafNode(m_leaf_allocator, m_comp);
+  }
+  return m_root.insert(position, value);
+}
 
 template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const_iterator position,
-                                              value_type &&value) -> iterator {}
+                                              value_type &&value) -> iterator {
+  if (m_root == nullptr) {
+    m_root = new LeafNode(m_leaf_allocator, m_comp);
+  }
+  m_root.insert(position, std::move(value));
+}
 
 template <BPLUS_TEMPLATES>
 void BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(
-    std::initializer_list<value_type> ilist) {}
+    std::initializer_list<value_type> ilist) {
+  if (m_root == nullptr) {
+    m_root = new LeafNode(m_leaf_allocator, m_comp);
+  }
+  m_root.insert(ilist);
+}
 
 #endif // !BPlusTree_HPP

@@ -1,19 +1,16 @@
 #include <gtest/gtest.h>
 
+#include "Concepts.hpp"
 #include "Map.hpp"
 #include "Set.hpp"
 
-template <typename Key, typename Value> Map<3, Key, Value> getSimpleMap() {
-  auto map = Map<3, Key, Value>{};
-  return map;
-}
-
 TEST(BPlusTreeTest, InsertionTest1) {
-  auto tree = getSimpleMap<int, int>();
+  auto tree = Map<3, int, int>();
   // is map
-  ASSERT_EQ(tree.is_map(), false);
+  ASSERT_EQ(tree.is_map(), true);
 
-  // auto pair = tree.insert({1, 1});
+  auto succes = tree.insert({1, 1});
+  ASSERT_TRUE(succes.first.get_value<InsertResult>() == INSERTION::SUCCESS);
 
   // ASSERT_TRUE(pair.second);
 
