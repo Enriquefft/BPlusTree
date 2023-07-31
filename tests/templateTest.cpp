@@ -9,7 +9,7 @@ TEST(TemplateParametersTesting, OnlyKey) {
   Set<4, key_type> tree;
 
   ASSERT_TRUE((std::is_same_v<decltype(tree)::key_type, key_type>));
-  ASSERT_TRUE(tree.isMap() == false);
+  ASSERT_TRUE(tree.is_map() == false);
 }
 
 TEST(TemplateParametersTesting, KeyAndValue) {
@@ -19,7 +19,7 @@ TEST(TemplateParametersTesting, KeyAndValue) {
   Map<4, key_type, value_type> tree;
   ASSERT_TRUE((std::is_same_v<decltype(tree)::key_type, key_type>));
   ASSERT_TRUE((std::is_same_v<decltype(tree)::mapped_type, value_type>));
-  ASSERT_TRUE(tree.isMap() == true);
+  ASSERT_TRUE(tree.is_map() == true);
 }
 
 class FloatCompare {
@@ -33,7 +33,7 @@ TEST(TemplateParametersTesting, KeyValueAndCompare) {
   Set<4, key_type, FloatCompare> tree;
 
   ASSERT_TRUE((std::is_same_v<decltype(tree)::key_type, key_type>));
-  ASSERT_TRUE(tree.isMap() == false);
+  ASSERT_TRUE(tree.is_map() == false);
 
   ASSERT_FALSE(
       (std::is_same_v<decltype(tree)::key_compare, std::less<key_type>>));

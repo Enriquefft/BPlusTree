@@ -11,7 +11,7 @@ template <typename Key, typename Value> Map<3, Key, Value> getSimpleMap() {
 TEST(BPlusTreeTest, InsertionTest1) {
   auto tree = getSimpleMap<int, int>();
   // is map
-  ASSERT_EQ(tree.isMap(), false);
+  ASSERT_EQ(tree.is_map(), false);
 
   // auto pair = tree.insert({1, 1});
 

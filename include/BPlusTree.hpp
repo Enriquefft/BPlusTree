@@ -2,10 +2,11 @@
 #define BPlusTree_HPP
 
 #include "Concepts.hpp"
+#include "NodeHandler.hpp"
+
 #include <cmath>
 #include <functional>
 #include <memory>
-#include <variant>
 
 constexpr size_t MIN_DEGREE = 3;
 
@@ -39,11 +40,11 @@ class BPlusTree {
   static_assert(M >= MIN_DEGREE, "M(B+Tree degree) must be at least 3");
 
   template <bool isConst> class BPlusTreeIterator;
-  class NodeHandler;
-  class LeafNode;
-  class InternalNode;
+  using NodeHandler = NodeHandler<M, Key, T, Compare, Indexer, Allocator, isSet,
+                                  MAX_CHILDS, MAX_KEYS>;
 
-  class node_return;
+  using LeafNode = typename NodeHandler::LeafNode;
+  using InternalNode = typename NodeHandler::InternalNode;
 
 public:
   /// @defgroup TypeDefinitions Type Definitions
@@ -121,7 +122,7 @@ protected:
   /// @param indexor Indexer configuration. Defaults to Indexer().
   explicit BPlusTree(const Compare &comp, const Allocator &alloc = Allocator(),
                      const Indexer &indexor = Indexer())
-      : m_comp(comp), m_allocator(alloc), m_indexor(indexor) {}
+      : m_comp(comp), m_leaf_allocator(alloc), m_indexor(indexor) {}
 
   /// @brief Allocator-based constructor
   /// @details It allows configuration of allocator and indexer.
@@ -155,7 +156,7 @@ protected:
   BPlusTree(InputIt first, InputIt last, const Compare &comp,
             const Allocator &alloc = Allocator(),
             const Indexer &indexor = Indexer())
-      : m_comp(comp), m_allocator(alloc), m_indexor(indexor) {
+      : m_comp(comp), m_leaf_allocator(alloc), m_indexor(indexor) {
     insert(first, last);
   }
 
@@ -444,50 +445,6 @@ public:
   /// @}
 
 private:
-  // Internal use classes
-
-  /**
-   * @class NodeHandler
-   * @brief Base Node structure for B+ tree.
-   * @details The Node structure consists of an array of keys and a flag for
-   * whether the node is a leaf. It is the base class for both @ref LeafNode
-   * "LeafNode" and @ref InternalNode "InternalNode".
-   */
-  class NodeHandler {
-
-    std::variant<LeafNode, InternalNode> m_node;
-    /**
-     * @brief Boolean flag to know whether the node is a leaf.
-     * Used to maintain:
-     * https://en.wikipedia.org/wiki/Liskov_substitution_principle
-     */
-    bool m_isLeaf;
-  };
-
-  /**
-   * @class LeafNode
-   * @brief Leaf node for B+ tree.
-   * @details The LeafNode class inherits from @ref Node "Node" and adds an
-   * array of values and pointers to the next and previous leaf nodes.
-   * */
-  class LeafNode {
-    std::array<value_type, MAX_KEYS>
-        m_values;     ///< Array of (M-1) values_types (key-value pairs)
-    LeafNode *m_next; ///< Pointer to next leaf node
-    LeafNode *m_prev; ///< Pointer to previous leaf node
-  };
-
-  /**
-   * @class InternalNode
-   * @brief Internal node for B+ tree.
-   * @details The InternalNode class inherits from @ref Node "Node" and adds an
-   * array of pointers to child nodes.
-   * */
-  class InternalNode {
-    std::array<Key, MAX_KEYS> m_keys;                 ///< Array of (M-1) keys
-    std::array<NodeHandler *, MAX_CHILDS> m_children; ///< Array of M children
-  };
-
   /**
    * @class BPlusTreeIterator
    * @brief Iterator for B+ tree.
@@ -498,7 +455,7 @@ private:
 
   // Private members
   NodeHandler *m_root = nullptr;
-  allocator_type m_allocator;
+  allocator_type m_leaf_allocator;
   key_compare m_comp;
   indexor m_indexor;
 };
@@ -525,8 +482,9 @@ template <BPLUS_TEMPLATES> BPlusTree<BPLUS_TEMPLATE_PARAMS>::~BPlusTree() {
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other)
     : m_comp(other.m_comp),
-      m_allocator(std::allocator_traits<allocator_type>::
-                      select_on_container_copy_construction(other.m_allocator)),
+      m_leaf_allocator(
+          std::allocator_traits<allocator_type>::
+              select_on_container_copy_construction(other.m_leaf_allocator)),
       m_indexor(other.m_indexor) {
 
   if (other.m_root != nullptr) {
@@ -540,9 +498,10 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other)
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other,
                                             const Allocator &alloc)
-    : m_comp(other.m_comp), m_allocator(alloc), m_indexor(other.m_indexor) {
+    : m_comp(other.m_comp), m_leaf_allocator(alloc),
+      m_indexor(other.m_indexor) {
 
-  if (alloc == other.m_allocator) {
+  if (alloc == other.m_leaf_allocator) {
     if (other.m_root != nullptr) {
       // InternalNode or LeafNode
       m_root = new std::remove_pointer_t<decltype(other.m_root)>(*other.m_root);
@@ -559,7 +518,7 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other,
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other) noexcept
     : m_root(std::exchange(other.m_root, nullptr)),
-      m_allocator(std::move(other.m_allocator)),
+      m_leaf_allocator(std::move(other.m_leaf_allocator)),
       m_comp(std::move(other.m_comp)), m_indexor(std::move(other.m_indexor)) {}
 
 template <BPLUS_TEMPLATES>
@@ -567,8 +526,8 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other,
                                             const Allocator &alloc)
     : m_comp(other.m_comp), m_indexor(other.m_indexor) {
 
-  if (alloc == other.m_allocator) {
-    m_allocator = std::move(other.m_allocator);
+  if (alloc == other.m_leaf_allocator) {
+    m_leaf_allocator = std::move(other.m_leaf_allocator);
     m_root = std::exchange(other.m_root, nullptr);
     return;
   }
@@ -586,7 +545,7 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(BPlusTree &&other) noexcept {
     this->clear();
 
     m_root = std::exchange(other.m_root, nullptr);
-    m_allocator = std::move(other.m_allocator);
+    m_leaf_allocator = std::move(other.m_leaf_allocator);
     m_comp = std::move(other.m_comp);
     m_indexor = std::move(other.m_indexor);
   }
@@ -600,7 +559,7 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(const BPlusTree &other) {
 
   if (this != &other) {
     this->clear();
-    m_allocator = other.m_allocator;
+    m_leaf_allocator = other.m_leaf_allocator;
     m_comp = other.m_comp;
     m_indexor = other.m_indexor;
 
@@ -629,7 +588,7 @@ template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(
     std::initializer_list<value_type> init, const Compare &comp,
     const Allocator &alloc, const Indexer &indexor)
-    : m_comp(comp), m_allocator(alloc), m_indexor(indexor) {
+    : m_comp(comp), m_leaf_allocator(alloc), m_indexor(indexor) {
   insert(init);
 }
 
@@ -637,11 +596,22 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(
 
 template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const value_type &value)
-    -> std::pair<iterator, bool> {}
+    -> std::pair<iterator, bool> {
+
+  if (m_root == nullptr) {
+    m_root = m_leaf_allocator.allocate(1);
+  }
+  m_root->insert(value);
+}
 
 template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(value_type &&value)
-    -> std::pair<iterator, bool> {}
+    -> std::pair<iterator, bool> {
+  if (m_root == nullptr) {
+    m_root = m_leaf_allocator.allocate(1);
+  }
+  m_root->insert(std::move(value));
+}
 
 template <BPLUS_TEMPLATES>
 auto BPlusTree<BPLUS_TEMPLATE_PARAMS>::insert(const_iterator position,
