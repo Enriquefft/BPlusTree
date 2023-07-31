@@ -35,17 +35,18 @@ template <size_t M, properKeyValue Key, properKeyValue T = Key,
 // overhead.
 
 class BPlusTree {
-  size_t C_MIN_CHILDS = std::ceil(M / 2);
-  size_t C_MIN_KEYS = std::ceil(M / 2) - 1;
+
+  size_t C_MIN_CHILDS = static_cast<size_t>(std::ceil(M / 2));
+  size_t C_MIN_KEYS = static_cast<size_t>(std::ceil(M / 2)) - 1;
 
   // M must be at least 3
   static_assert(M >= MIN_DEGREE, "M(B+Tree degree) must be at least 3");
 
-  using NodeHandler =
+  using NodeHandler_ =
       NodeHandler<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS, MAX_KEYS>;
 
-  using LeafNode = typename NodeHandler::LeafNode;
-  using InternalNode = typename NodeHandler::InternalNode;
+  using LeafNode = typename NodeHandler_::LeafNode_;
+  using InternalNode = typename NodeHandler_::InternalNode_;
 
   template <bool isConst>
   using BPlusTreeIterator =
@@ -192,8 +193,7 @@ protected:
 
   /// @brief Iterator and Allocator-based constructor
   /// @details Allows input of range and configuration of allocator.
-  /// @param [in] first Iterator pointing to the start of input range.
-  /// @param [in] last Iterator pointing to the end of input range.
+  /// @param [in] init Initializer list
   /// @param alloc Allocator.
   BPlusTree(std::initializer_list<value_type> init, const Allocator &alloc)
       : BPlusTree(init, Compare(), alloc) {}
@@ -289,7 +289,7 @@ public:
   iterator insert(const_iterator position, value_type &&value);
 
   template <ValueInputIterator<value_type> InputIt>
-  void insert(InputIt first, InputIt last) {}
+  void insert(InputIt first, InputIt last);
 
   void insert(std::initializer_list<value_type> ilist);
 
@@ -382,9 +382,9 @@ public:
 
 private:
   // Private members
-  NodeHandler m_root = nullptr;
-  allocator_type m_leaf_allocator;
+  NodeHandler_ m_root = nullptr;
   key_compare m_comp;
+  allocator_type m_leaf_allocator;
 };
 
 #define BPLUS_TEMPLATES                                                        \

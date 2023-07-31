@@ -67,7 +67,7 @@ private:
   iterator insert(const_iterator position, value_type &&value);
 
   template <ValueInputIterator<value_type> InputIt>
-  void insert(InputIt first, InputIt last) {}
+  void insert(InputIt first, InputIt last);
 
   void insert(std::initializer_list<value_type> ilist);
 

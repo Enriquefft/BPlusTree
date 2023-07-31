@@ -26,10 +26,10 @@ class InternalNode {
                          MAX_KEYS>;
 
 private:
-  using NodeHandler =
+  using NodeHandler_ =
       NodeHandler<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS, MAX_KEYS>;
-  std::array<Key, MAX_KEYS> m_keys;                 ///< Array of (M-1) keys
-  std::array<NodeHandler *, MAX_CHILDS> m_children; ///< Array of M children
+  std::array<Key, MAX_KEYS> m_keys;                  ///< Array of (M-1) keys
+  std::array<NodeHandler_ *, MAX_CHILDS> m_children; ///< Array of M children
 };
 
 #endif // !INTERNAL_NODE_HPP

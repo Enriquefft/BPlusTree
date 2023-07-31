@@ -2,7 +2,6 @@
 #define ITERATOR_HPP
 
 #include "Concepts.hpp"
-#include <any>
 
 /**
  * @class BPlusTreeIterator
@@ -17,12 +16,6 @@ class BPlusTreeIterator {
 
 public:
   BPlusTreeIterator() = default;
-  template <typename X> BPlusTreeIterator(X &val) : m_val(val) {
-    using type = X;
-  }
-  template <typename X> auto get_value() { return std::any_cast<X>(m_val); }
-
-  std::any m_val;
 };
 
 #endif // !ITERATOR_HPP
