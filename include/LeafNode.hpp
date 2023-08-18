@@ -8,14 +8,7 @@
 // Debug
 #include "iostream"
 
-template <size_t M, properKeyValue Key, properKeyValue T,
-          std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,
-          size_t MAX_CHILDS, size_t MAX_KEYS>
-class BPlusTree;
-
-template <size_t M, properKeyValue Key, properKeyValue T,
-          std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,
-          size_t MAX_CHILDS, size_t MAX_KEYS>
+template <BPLUS_TEMPLATES, size_t MAX_CHILDS, size_t MAX_KEYS>
 class NodeHandler;
 
 /**
@@ -24,22 +17,15 @@ class NodeHandler;
  * @details The LeafNode class inherits from @ref Node "Node" and adds an
  * array of values and pointers to the next and previous leaf nodes.
  * */
-template <size_t M, properKeyValue Key, properKeyValue T,
-          std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,
-          size_t MAX_CHILDS = M, size_t MAX_KEYS = M - 1>
-class LeafNode {
+template <BPLUS_TEMPLATES, size_t MAX_CHILDS, size_t MAX_KEYS> class LeafNode {
 
-  friend class BPlusTree<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS,
-                         MAX_KEYS>;
-  friend class NodeHandler<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS,
-                           MAX_KEYS>;
+  friend class BPlusTree<BPLUS_TEMPLATE_PARAMS>;
+  friend class NodeHandler<BPLUS_TEMPLATE_PARAMS, MAX_CHILDS, MAX_KEYS>;
 
 private:
-  using value_type = std::conditional_t<isSet, Key, std::pair<const Key, T>>;
-  using iterator = BPlusTreeIterator<false, M, Key, T, Compare, Allocator,
-                                     isSet, MAX_CHILDS, MAX_KEYS>;
-  using const_iterator = BPlusTreeIterator<true, M, Key, T, Compare, Allocator,
-                                           isSet, MAX_CHILDS, MAX_KEYS>;
+  using value_type = T;
+  using iterator = BPlusTreeIterator<BPLUS_TEMPLATE_PARAMS, false>;
+  using const_iterator = BPlusTreeIterator<BPLUS_TEMPLATE_PARAMS, true>;
 
   explicit LeafNode(Allocator &allocator, Compare &comparator)
       : m_allocator(allocator), m_comparator(comparator) {
@@ -79,16 +65,8 @@ private:
   Compare &m_comparator;
 };
 
-#define BPLUS_TEMPLATES                                                        \
-  size_t M, properKeyValue Key, properKeyValue T,                              \
-      std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,     \
-      size_t CHILD_COUNT, size_t KEY_COUNT
-
-#define BPLUS_TEMPLATE_PARAMS                                                  \
-  M, Key, T, Compare, Allocator, isSet, CHILD_COUNT, KEY_COUNT
-
-template <BPLUS_TEMPLATES>
-auto LeafNode<BPLUS_TEMPLATE_PARAMS>::insert(const value_type &value)
+template <NODE_TEMPLATES>
+auto LeafNode<NODE_TEMPLATE_PARAMS>::insert(const value_type &value)
     -> std::pair<iterator, InsertResult> {
 
   // Find the position of the value in the sorted array

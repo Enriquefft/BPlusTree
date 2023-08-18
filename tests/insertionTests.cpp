@@ -9,8 +9,12 @@ TEST(BPlusTreeTest, InsertionTest1) {
   // is map
   ASSERT_EQ(tree.is_map(), true);
 
-  auto succes = tree.insert({1, 1});
-  ASSERT_TRUE(succes.second == INSERTION::SUCCESS);
+  auto succes1 = tree.insert({1, 1});
+  auto succes2 = tree.insert({1, 1});
+  auto succes3 = tree.insert({1, 1});
+  ASSERT_TRUE(succes1.second == INSERTION::SUCCESS);
+  ASSERT_TRUE(succes2.second == INSERTION::SUCCESS);
+  ASSERT_TRUE(succes3.second == INSERTION::WAS_FULL);
 
   // ASSERT_TRUE(pair.second);
 

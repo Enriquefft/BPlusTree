@@ -26,32 +26,23 @@ constexpr size_t MIN_DEGREE = 3;
  * time.
  *
  * */
-template <size_t M, properKeyValue Key, properKeyValue T = Key,
-          std::predicate<Key, Key> Compare = std::less<Key>,
-
-          IsAllocator Allocator = std::allocator<std::pair<const Key, T>>,
-          bool isSet = false, size_t MAX_CHILDS = M, size_t MAX_KEYS = M - 1>
-// Ugly solution, but allows for compile time usage of constants with 0
-// overhead.
-
+template <size_t M, properKeyValue Key, properKeyValue T,
+          Indexor<Key, std::pair<Key, T>> Indexor,
+          std ::predicate<Key, Key> Compare, IsAllocator Allocator>
 class BPlusTree {
 
-  size_t C_MIN_CHILDS = static_cast<size_t>(std::ceil(M / 2));
-  size_t C_MIN_KEYS = static_cast<size_t>(std::ceil(M / 2)) - 1;
+  // size_t C_MIN_CHILDS = static_cast<size_t>(std::ceil(M / 2));
+  // size_t C_MIN_KEYS = static_cast<size_t>(std::ceil(M / 2)) - 1;
 
   // M must be at least 3
   static_assert(M >= MIN_DEGREE, "M(B+Tree degree) must be at least 3");
 
-  using NodeHandler_ =
-      NodeHandler<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS, MAX_KEYS>;
-
+  using NodeHandler_ = NodeHandler<BPLUS_TEMPLATE_PARAMS, M, M - 1>;
   using LeafNode = typename NodeHandler_::LeafNode_;
   using InternalNode = typename NodeHandler_::InternalNode_;
 
   template <bool isConst>
-  using BPlusTreeIterator =
-      BPlusTreeIterator<isConst, M, Key, T, Compare, Allocator, isSet,
-                        MAX_CHILDS, MAX_KEYS>;
+  using BPlusTreeIterator = BPlusTreeIterator<BPLUS_TEMPLATE_PARAMS, isConst>;
 
 public:
   /// @defgroup TypeDefinitions Type Definitions
@@ -61,12 +52,11 @@ public:
   /// @brief Type definition for representing keys in BPlusTree
   using key_type = Key;
 
-  /// @brief Type definition for representing mapped or associated values in
-  /// BPlusTree
-  using mapped_type = T;
+  /// @brief Type definition for representing values in BPlusTree
+  using data_type = T;
 
   /// @brief Type definition for representing value pairs in BPlusTree
-  using value_type = std::conditional_t<isSet, Key, std::pair<Key, T>>;
+  using value_type = std::pair<Key, data_type>;
 
   /// @brief Type definition for representing size in BPlusTree
   using size_type = size_t;
@@ -78,8 +68,12 @@ public:
   using key_compare = Compare;
 
   /// @brief Type definition for leaf node allocator in BPlusTree
-  using allocator_type = Allocator;
   using allocator_traits = std::allocator_traits<Allocator>;
+  using allocator_type = Allocator;
+  using leaf_allocator_type =
+      typename allocator_traits::template rebind_alloc<LeafNode>;
+  using internal_allocator_type =
+      typename allocator_traits::template rebind_alloc<InternalNode>;
 
   /// @brief Type definition for reference to the value_type
   using reference = value_type &;
@@ -113,6 +107,8 @@ public:
   /// @details These constructors allow for any combination of comp, alloc and
 
 protected:
+  ~BPlusTree() { clear(); }
+
   /// @{
   /// @brief Default constructor
   /// @details It uses default comparator, allocator.
@@ -221,17 +217,6 @@ public:
   /// @}
 
   /**
-   * @name Element access
-   * Accesor methods for the B+Tree based on the key
-   * */
-  /// @{
-  mapped_type &at(const Key &key);
-  const mapped_type &at(const Key &key) const;
-  mapped_type &operator[](const Key &key);
-  mapped_type &operator[](Key &&key);
-  /// @}
-
-  /**
    * @name Iterators
    * Iterator related methods
    * */
@@ -293,16 +278,6 @@ public:
 
   void insert(std::initializer_list<value_type> ilist);
 
-  // insert_or_assign
-  template <MappedAssignable<mapped_type> P>
-  std::pair<iterator, bool> insert_or_assign(const key_type &key, P &&obj);
-  template <MappedAssignable<mapped_type> P>
-  std::pair<iterator, bool> insert_or_assign(key_type &&key, P &&obj);
-  template <MappedAssignable<mapped_type> P>
-  iterator insert_or_assign(const_iterator hint, const key_type &key, P &&obj);
-  template <MappedAssignable<mapped_type> P>
-  iterator insert_or_assign(const_iterator hint, key_type &&key, P &&obj);
-
   // emplace
   template <InverseConstructibleFrom<value_type>... Args>
   std::pair<iterator, bool> emplace(Args &&...args);
@@ -312,16 +287,16 @@ public:
   iterator emplace_hint(const_iterator hint, Args &&...args);
 
   // try_emplace
-  template <InverseConstructibleFrom<mapped_type>... Args>
+  template <InverseConstructibleFrom<data_type>... Args>
   std::pair<iterator, bool> try_emplace(const key_type &key, Args &&...args);
 
-  template <InverseConstructibleFrom<mapped_type>... Args>
+  template <InverseConstructibleFrom<data_type>... Args>
   std::pair<iterator, bool> try_emplace(key_type &&key, Args &&...args);
 
-  template <InverseConstructibleFrom<mapped_type>... Args>
+  template <InverseConstructibleFrom<data_type>... Args>
   iterator try_emplace(const_iterator hint, const key_type &key,
                        Args &&...args);
-  template <InverseConstructibleFrom<mapped_type>... Args>
+  template <InverseConstructibleFrom<data_type>... Args>
   iterator try_emplace(const_iterator hint, key_type &&key, Args &&...args);
 
   // erase
@@ -376,24 +351,22 @@ public:
   template <ComparableKey<key_type> K> iterator upper_bound(const K &key);
   template <ComparableKey<key_type> K> const_iterator upper_bound(const K &key);
 
-  bool is_map() { return !isSet; }
-
   /// @}
 
 private:
   // Private members
   NodeHandler_ m_root = nullptr;
   key_compare m_comp;
-  allocator_type m_leaf_allocator;
+
+  allocator_type m_allocator;
+  leaf_allocator_type m_leaf_allocator;
+  internal_allocator_type m_internal_allocator;
+
+  LeafNode *m_head = nullptr;
+  LeafNode *m_tail = nullptr;
+
+  void fix_head_tail();
 };
-
-#define BPLUS_TEMPLATES                                                        \
-  size_t M, properKeyValue Key, properKeyValue T,                              \
-      std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,     \
-      size_t CHILD_COUNT, size_t KEY_COUNT
-
-#define BPLUS_TEMPLATE_PARAMS                                                  \
-  M, Key, T, Compare, Allocator, isSet, CHILD_COUNT, KEY_COUNT
 
 /******************
 *******************
@@ -402,6 +375,20 @@ private:
 ******************/
 
 // *** Constructors *** //
+
+template <BPLUS_TEMPLATES>
+void BPlusTree<BPLUS_TEMPLATE_PARAMS>::fix_head_tail() {
+
+  auto left_it = m_root;
+  auto right_it = m_root;
+
+  while (!left_it.m_isLeaf) {
+    left_it = left_it.childs()[0];
+    right_it = right_it.childs()[right_it.keyCount()];
+  }
+  m_head = left_it;
+  m_tail = right_it;
+}
 
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other)
@@ -413,6 +400,8 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other)
   if (other.m_root != nullptr) {
     // InternalNode or LeafNode
     m_root = new std::remove_pointer_t<decltype(other.m_root)>(*other.m_root);
+    fix_head_tail();
+
   } else {
     m_root = nullptr;
   }
@@ -427,6 +416,7 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(const BPlusTree &other,
     if (other.m_root != nullptr) {
       // InternalNode or LeafNode
       m_root = new std::remove_pointer_t<decltype(other.m_root)>(*other.m_root);
+      fix_head_tail();
     } else {
       m_root = nullptr;
     }
@@ -441,7 +431,9 @@ template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other) noexcept
     : m_root(std::exchange(other.m_root, nullptr)),
       m_leaf_allocator(std::move(other.m_leaf_allocator)),
-      m_comp(std::move(other.m_comp)) {}
+      m_comp(std::move(other.m_comp)),
+      m_head(std::exchange(other.m_head, nullptr)),
+      m_tail(std::exchange(other.m_tail, nullptr)) {}
 
 template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other,
@@ -451,6 +443,8 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::BPlusTree(BPlusTree &&other,
   if (alloc == other.m_leaf_allocator) {
     m_leaf_allocator = std::move(other.m_leaf_allocator);
     m_root = std::exchange(other.m_root, nullptr);
+    m_head = std::exchange(other.m_head, nullptr);
+    m_tail = std::exchange(other.m_tail, nullptr);
     return;
   }
 
@@ -469,6 +463,8 @@ BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(BPlusTree &&other) noexcept {
     m_root = std::exchange(other.m_root, nullptr);
     m_leaf_allocator = std::move(other.m_leaf_allocator);
     m_comp = std::move(other.m_comp);
+    m_head = std::exchange(other.m_head, nullptr);
+    m_tail = std::exchange(other.m_tail, nullptr);
   }
 
   return *this;
@@ -478,18 +474,24 @@ template <BPLUS_TEMPLATES>
 BPlusTree<BPLUS_TEMPLATE_PARAMS> &
 BPlusTree<BPLUS_TEMPLATE_PARAMS>::operator=(const BPlusTree &other) {
 
-  if (this != &other) {
-    this->clear();
-    m_leaf_allocator = other.m_leaf_allocator;
-    m_comp = other.m_comp;
-
-    if (other.m_root != nullptr) {
-      // InternalNode or LeafNode
-      m_root = new std::remove_pointer_t<decltype(other.m_root)>(*other.m_root);
-    } else {
-      m_root = nullptr;
-    }
+  if (this == &other) {
+    return *this;
   }
+
+  m_comp = other.m_comp;
+
+  if constexpr (allocator_traits::propagate_on_container_copy_assignment::
+                    value) {
+    m_leaf_allocator = other.m_leaf_allocator;
+  }
+
+  if (m_leaf_allocator != other.m_leaf_allocator) {
+    this->clear();
+    // m_root = new;
+  }
+
+  // copy
+
   return *this;
 }
 

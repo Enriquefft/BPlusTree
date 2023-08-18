@@ -34,8 +34,8 @@ target_compile_options(
           $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fsanitize-address-use-after-scope>
           $<$<CONFIG:RELEASE>:-Ofast>
           $<$<CONFIG:DEBUG>:-O0>
-          $<$<CONFIG:DEBUG>:-ggdb3>)
-# "-fsanitize=address,undefined")
+          $<$<CONFIG:DEBUG>:-ggdb3>
+          "-fsanitize=address,undefined")
 
 target_link_options(
   bplus_tree PRIVATE

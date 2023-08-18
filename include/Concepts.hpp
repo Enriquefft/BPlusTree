@@ -1,6 +1,7 @@
 #ifndef CONCEPTS_B_PLUS_TREE_HPP
 #define CONCEPTS_B_PLUS_TREE_HPP
 
+#include "BPlusTemplate.hpp"
 #include <iterator>
 #include <utility>
 
@@ -8,6 +9,15 @@
 /// @name Concepts
 /// @brief Concepts that the B+Tree members use
 /// @{
+
+/**
+ * @brief Concept for a proper key value
+ * @details
+ * A proper key value is a value that can be used as a key in the tree, it must
+ * be copy constructible and not a function
+ * */
+template <typename Key>
+concept properKeyValue = std::copy_constructible<Key>;
 
 template <typename T>
 concept IsAllocator =
@@ -19,6 +29,10 @@ concept IsAllocator =
 
 template <typename C, typename Key>
 concept ComparableKey = std::equality_comparable_with<Key, C>;
+
+template <typename F, typename Key, typename T>
+concept Indexor = std::regular_invocable<F, T> &&
+                  std::convertible_to<std::invoke_result_t<F, T>, Key>;
 
 template <typename P, typename value_type>
 concept rvalue_constructible_from =
@@ -56,22 +70,16 @@ struct InsertResult {
   [[nodiscard]] constexpr operator bool() const noexcept { return inserted; }
   [[nodiscard]] constexpr bool operator!() const noexcept { return !inserted; }
 };
+
 namespace INSERTION {
 [[maybe_unused]] constexpr InsertResult SUCCESS{true, false, false};
 [[maybe_unused]] constexpr InsertResult ALREADY_EXISTS{false, true, false};
 [[maybe_unused]] constexpr InsertResult WAS_FULL{false, false, true};
 } // namespace INSERTION
 
-/**
- * @brief Concept for a proper key value
- * @details
- * A proper key value is a value that can be used as a key in the tree, it must
- * be copy constructible and not a function
- * */
-template <typename Key>
-concept properKeyValue = std::copy_constructible<Key> && !
-std::is_function_v<std::remove_pointer_t<Key>>;
-
 /// @}
+
+// Declare B+Tree class
+template <BPLUS_TEMPLATES> class BPlusTree;
 
 #endif // !CONCEPTS_B_PLUS_TREE_HPP

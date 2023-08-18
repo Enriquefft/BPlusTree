@@ -37,24 +37,18 @@ template <typename T, typename U> struct erase_parenthesis<T(U)> {
  * whether the node is a leaf. It is the base class for both @ref LeafNode
  * "LeafNode" and @ref InternalNode "InternalNode".
  */
-template <size_t M, properKeyValue Key, properKeyValue T,
-          std::predicate<Key, Key> Compare, IsAllocator Allocator, bool isSet,
-          size_t MAX_CHILDS = M, size_t MAX_KEYS = M - 1>
+template <BPLUS_TEMPLATES, size_t MAX_CHILDS, size_t MAX_KEYS>
 class NodeHandler {
 
-  friend class BPlusTree<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS,
-                         MAX_KEYS>;
+  friend class BPlusTree<BPLUS_TEMPLATE_PARAMS>;
 
-  using value_type = std::conditional_t<isSet, Key, std::pair<const Key, T>>;
+  using value_type = T;
 
-  using LeafNode_ =
-      LeafNode<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS, MAX_KEYS>;
-  using InternalNode_ =
-      InternalNode<M, Key, T, Compare, Allocator, isSet, MAX_CHILDS, MAX_KEYS>;
-  using iterator = BPlusTreeIterator<false, M, Key, T, Compare, Allocator,
-                                     isSet, MAX_CHILDS, MAX_KEYS>;
-  using const_iterator = BPlusTreeIterator<true, M, Key, T, Compare, Allocator,
-                                           isSet, MAX_CHILDS, MAX_KEYS>;
+  using LeafNode_ = LeafNode<NODE_TEMPLATE_PARAMS>;
+  using InternalNode_ = InternalNode<NODE_TEMPLATE_PARAMS>;
+
+  using iterator = BPlusTreeIterator<BPLUS_TEMPLATE_PARAMS, false>;
+  using const_iterator = BPlusTreeIterator<BPLUS_TEMPLATE_PARAMS, true>;
 
   NodeHandler(LeafNode_ *leaf_node) : m_node(leaf_node), m_isLeaf(true) {}
   NodeHandler(InternalNode_ *internal_node)
